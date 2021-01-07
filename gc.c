@@ -2849,6 +2849,9 @@ obj_free(rb_objspace_t *objspace, VALUE obj)
 	if (RCLASS_IV_INDEX_TBL(obj)) {
             iv_index_tbl_free(RCLASS_IV_INDEX_TBL(obj));
 	}
+	if (RCLASS_CVC_TBL(obj)) {
+            rb_id_table_free(RCLASS_CVC_TBL(obj));
+	}
 	if (RCLASS_SUBCLASSES(obj)) {
 	    if (BUILTIN_TYPE(obj) == T_MODULE) {
 		rb_class_detach_module_subclasses(obj);

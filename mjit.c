@@ -23,6 +23,7 @@
 #include "internal/file.h"
 #include "internal/hash.h"
 #include "internal/warnings.h"
+#include "debug_counter.h"
 
 #include "mjit_worker.c"
 
