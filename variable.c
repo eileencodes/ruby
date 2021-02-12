@@ -39,6 +39,8 @@
 #include "ractor_core.h"
 #include "vm_sync.h"
 
+RUBY_EXTERN rb_serial_t ruby_vm_global_cvar_state;
+
 typedef void rb_gvar_compact_t(void *var);
 
 static struct rb_id_table *rb_global_tbl;
@@ -3590,6 +3592,7 @@ rb_class_ivar_set(VALUE obj, ID key, VALUE value)
 {
     st_table *tbl = RCLASS_IV_TBL(obj);
     int result = st_insert(tbl, (st_data_t)key, (st_data_t)value);
+    //ruby_vm_global_cvar_state++;
     RB_OBJ_WRITTEN(obj, Qundef, value);
     return result;
 }
