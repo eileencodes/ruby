@@ -12,6 +12,7 @@
 #include "internal/re.h"
 #include "probes.h"
 #include "probes_helper.h"
+#include "ruby/debug.h"
 #include "yjit.h"
 #include "yjit_iface.h"
 #include "yjit_core.h"
@@ -323,6 +324,37 @@ _counted_side_exit(jitstate_t* jit, uint8_t *existing_side_exit, int64_t *counte
 
 #endif // if YJIT_STATS
 
+#define BUFF_LEN 2048
+
+static void
+record_exit_stack()
+{
+    VALUE frames_buffer[BUFF_LEN];
+    int lines_buffer[BUFF_LEN];
+    int num = rb_profile_frames(0, sizeof(frames_buffer) / sizeof(VALUE), frames_buffer, lines_buffer);
+
+    fprintf(stderr, "#####################\n");
+    for (int i = 0; i < num; i++) {
+        VALUE frame = frames_buffer[i];
+        VALUE name = rb_profile_frame_full_label(frame);
+        VALUE file = rb_profile_frame_absolute_path(frame);
+
+        if (NIL_P(file)) {
+            file = rb_profile_frame_path(frame);
+        }
+
+        VALUE line = rb_profile_frame_first_lineno(frame);
+
+        if (NIL_P(line)) {
+            line = INT2NUM(0);
+        }
+        fprintf(stderr, "%s %s: %d\n", StringValueCStr(name), StringValueCStr(file), NUM2INT(line));
+    }
+    fprintf(stderr, "#####################\n");
+
+  //num = rb_profile_frames(0, sizeof(_stackprof.frames_buffer) / sizeof(VALUE), _stackprof.frames_buffer, _stackprof.lines_buffer);
+}
+
 // Generate an exit to return to the interpreter
 static uint32_t
 yjit_gen_exit(VALUE *exit_pc, ctx_t *ctx, codeblock_t *cb)
@@ -353,6 +385,9 @@ yjit_gen_exit(VALUE *exit_pc, ctx_t *ctx, codeblock_t *cb)
 
     pop(cb, REG_SP);
     pop(cb, REG_EC);
+
+    call_ptr(cb, REG0, (void *)record_exit_stack);
+
     pop(cb, REG_CFP);
 
     mov(cb, RAX, imm_opnd(Qundef));
@@ -3007,7 +3042,7 @@ jit_guard_known_klass(jitstate_t *jit, ctx_t *ctx, VALUE known_klass, insn_opnd_
         // TODO: jit_mov_gc_ptr keeps a strong reference, which leaks the object.
         jit_mov_gc_ptr(jit, cb, REG1, sample_instance);
         cmp(cb, REG0, REG1);
-        jit_chain_guard(JCC_JNE, jit, ctx, max_chain_depth, side_exit);
+        jit_chain_guard(JCC_JNE, jit, ctx, max_chain_depth, COUNTED_EXIT(jit, side_exit, getivar_what_is_happening));
     }
     else {
         RUBY_ASSERT(!val_type.is_imm);
@@ -3032,7 +3067,7 @@ jit_guard_known_klass(jitstate_t *jit, ctx_t *ctx, VALUE known_klass, insn_opnd_
         ADD_COMMENT(cb, "guard known class");
         jit_mov_gc_ptr(jit, cb, REG1, known_klass);
         cmp(cb, klass_opnd, REG1);
-        jit_chain_guard(JCC_JNE, jit, ctx, max_chain_depth, side_exit);
+        jit_chain_guard(JCC_JNE, jit, ctx, max_chain_depth, COUNTED_EXIT(jit, side_exit, getivar_last_exit));
     }
 
     return true;

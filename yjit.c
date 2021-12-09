@@ -98,6 +98,8 @@ YJIT_DECLARE_COUNTERS(
     getivar_se_self_not_heap,
     getivar_idx_out_of_range,
     getivar_megamorphic,
+    getivar_what_is_happening,
+    getivar_last_exit,
 
     setivar_se_self_not_heap,
     setivar_idx_out_of_range,
