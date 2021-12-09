@@ -12,6 +12,7 @@
 #include "yjit_codegen.h"
 #include "yjit_core.h"
 #include "darray.h"
+#include "ruby/debug.h"
 
 #ifdef HAVE_LIBCAPSTONE
 #include <capstone/capstone.h>
@@ -262,10 +263,33 @@ mark_and_pin_keys_i(st_data_t k, st_data_t v, st_data_t ignore)
     return ST_CONTINUE;
 }
 
+extern struct yjit_exit_locations_t yjit_exit_locations;
+
+static void
+mark_exit_locations()
+{
+    size_t idx = 0;
+    while (idx < yjit_exit_locations.samples_len) {
+        int num = (int)yjit_exit_locations.raw_samples[idx];
+        idx++;
+
+        for (int o = 0; o < num; o++) {
+            rb_gc_mark(yjit_exit_locations.raw_samples[idx]);
+            idx++;
+        }
+
+        idx++;
+        idx++;
+    }
+}
+
 // GC callback during mark phase
 static void
 yjit_root_mark(void *ptr)
 {
+
+    mark_exit_locations();
+
     if (method_lookup_dependency) {
         // TODO: This is a leak. Unused blocks linger in the table forever, preventing the
         // callee class they speculate on from being collected.
@@ -748,6 +772,79 @@ yjit_stats_enabled_p(rb_execution_context_t *ec, VALUE self)
     return RBOOL(YJIT_STATS && rb_yjit_opts.gen_stats);
 }
 
+# define PTR2NUM(x)   (rb_int2inum((intptr_t)(void *)(x)))
+
+static void
+add_frame(VALUE hash, VALUE frame)
+{
+    VALUE frame_id = PTR2NUM(frame);
+
+    if (RTEST(rb_hash_aref(hash, frame_id))) {
+        return;
+    } else {
+        VALUE frame_info = rb_hash_new();
+        VALUE name = rb_profile_frame_full_label(frame);
+        VALUE file = rb_profile_frame_absolute_path(frame);
+        VALUE line = rb_profile_frame_first_lineno(frame);
+
+        if (NIL_P(file)) {
+            file = rb_profile_frame_path(frame);
+        }
+
+	rb_hash_aset(frame_info, ID2SYM(rb_intern("name")), name);
+	rb_hash_aset(frame_info, ID2SYM(rb_intern("file")), file);
+
+	if (line != INT2FIX(0)) {
+	    rb_hash_aset(frame_info, ID2SYM(rb_intern("line")), line);
+	}
+
+        rb_hash_aset(hash, frame_id, frame_info);
+    }
+}
+
+static size_t
+push_samples(VALUE raw_samples, VALUE line_samples, size_t idx)
+{
+    rb_ary_push(raw_samples, SIZET2NUM(yjit_exit_locations.raw_samples[idx]));
+    rb_ary_push(line_samples, INT2NUM(yjit_exit_locations.line_samples[idx]));
+    idx++;
+
+    return idx;
+}
+
+static VALUE
+get_yjit_exit_locations(rb_execution_context_t *ec, VALUE self)
+{
+    VALUE raw_samples = rb_ary_new_capa(yjit_exit_locations.samples_len);
+    VALUE line_samples = rb_ary_new_capa(yjit_exit_locations.samples_len);
+    VALUE frames = rb_hash_new();
+    VALUE result = rb_hash_new();
+    size_t idx = 0;
+
+    while (idx < yjit_exit_locations.samples_len) {
+        int num = (int)yjit_exit_locations.raw_samples[idx];
+        int line_num = (int)yjit_exit_locations.line_samples[idx];
+        idx++;
+
+	rb_ary_push(raw_samples, SIZET2NUM(num));
+	rb_ary_push(line_samples, INT2NUM(line_num));
+
+	for (int o = 0; o < num; o++) {
+            add_frame(frames, yjit_exit_locations.raw_samples[idx]);
+            idx = push_samples(raw_samples, line_samples, idx);
+	}
+
+        idx = push_samples(raw_samples, line_samples, idx);
+        idx = push_samples(raw_samples, line_samples, idx);
+    }
+
+    rb_hash_aset(result, ID2SYM(rb_intern("frames")), frames);
+    rb_hash_aset(result, ID2SYM(rb_intern("raw")), raw_samples);
+    rb_hash_aset(result, ID2SYM(rb_intern("lines")), line_samples);
+
+    return result;
+}
+
 // Primitive called in yjit.rb. Export all YJIT statistics as a Ruby hash.
 static VALUE
 get_yjit_stats(rb_execution_context_t *ec, VALUE self)
@@ -1179,8 +1276,6 @@ rb_yjit_call_threshold(void)
 {
     return rb_yjit_opts.call_threshold;
 }
-
-# define PTR2NUM(x)   (rb_int2inum((intptr_t)(void *)(x)))
 
 /**
  *  call-seq: block.id -> unique_id

@@ -131,6 +131,80 @@ module RubyVM::YJIT
     end
   end
 
+  # If stats are turned on, parse the exit locations from yjit into a format
+  # readable by Stackprof. This can be used to determine the location of a particular
+  # exit.
+  #
+  # To use, write to a file and Marshal dump.
+  #
+  #   File.write("yjit_exit_locations.dump", Marshal.dump(RubyVM::YJIT.exit_locations))
+  #
+  # Then read the file with Stackprof
+  #
+  #   stackprof --text yjit_exit_locations.dump
+  #
+  # If the line is from insns.def we define the file for Stackprof as nonexistent.def so
+  # that Stackprof does not try to output the definition file. To drill down into individual
+  # methods for data, see Stackprof's documentation.
+  def self.exit_locations
+    results = Primitive.get_yjit_exit_locations
+    raw_samples = results[:raw].dup
+    line_samples = results[:lines].dup
+    frames = results[:frames].dup
+    samples_count = 0
+
+    frames.each do |frame_id, frame|
+      frame[:samples] = 0
+      frame[:edges] = {}
+    end
+
+    RubyVM::INSTRUCTION_NAMES.each_with_index do |name, frame_id|
+      frame_hash = { samples: 0, total_samples: 0, edges: {}, name: name, file: "nonexistent.def", line: nil }
+      results[:frames][frame_id] = frame_hash
+      frames[frame_id] = frame_hash
+    end
+
+    while raw_samples.length > 0
+      stack_trace = raw_samples.shift(raw_samples.shift + 1)
+      lines = line_samples.shift(line_samples.shift + 1)
+      prev_frame_id = nil
+
+      stack_trace.each_with_index do |frame_id, idx|
+        if prev_frame_id
+          prev_frame = frames[prev_frame_id]
+          prev_frame[:edges][frame_id] ||= 0
+          prev_frame[:edges][frame_id] += 1
+        end
+
+        frame_info = frames[frame_id]
+        frame_info[:total_samples] ||= 0
+        frame_info[:total_samples] += 1
+
+        frame_info[:lines] ||= {}
+        frame_info[:lines][lines[idx]] ||= [0, 0]
+        frame_info[:lines][lines[idx]][0] += 1
+
+        prev_frame_id = frame_id
+      end
+
+      top_frame_id = stack_trace.last
+      top_frame_line = 1
+
+      frames[top_frame_id][:samples] += 1
+      frames[top_frame_id][:lines] ||= {}
+      frames[top_frame_id][:lines][top_frame_line] ||= [0, 0]
+      frames[top_frame_id][:lines][top_frame_line][1] += 1
+
+      samples_count += raw_samples.shift
+      line_samples.shift
+    end
+
+    results[:samples] = samples_count
+    results[:missed_samples] = 0
+    results[:gc_samples] = 0
+    results
+  end
+
   # Return a hash for statistics generated for the --yjit-stats command line option.
   # Return nil when option is not passed or unavailable.
   def self.runtime_stats
