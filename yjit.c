@@ -144,6 +144,13 @@ YJIT_DECLARE_COUNTERS(
 static struct rb_yjit_runtime_counters yjit_runtime_counters = { 0 };
 #undef YJIT_DECLARE_COUNTERS
 
+static struct yjit_exit_locations_t {
+    VALUE *raw_samples;
+    int *line_samples;
+    size_t samples_capa;
+    size_t samples_len;
+} yjit_exit_locations;
+
 #endif // YJIT_STATS
 
 // The number of bytes counting from the beginning of the inline code block

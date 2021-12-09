@@ -12,6 +12,7 @@
 #include "internal/re.h"
 #include "probes.h"
 #include "probes_helper.h"
+#include "ruby/debug.h"
 #include "yjit.h"
 #include "yjit_iface.h"
 #include "yjit_core.h"
@@ -322,7 +323,61 @@ _counted_side_exit(jitstate_t* jit, uint8_t *existing_side_exit, int64_t *counte
 
 #define GEN_COUNTER_INC(cb, counter_name) ((void)0)
 #define COUNTED_EXIT(jit, side_exit, counter_name) side_exit
+#endif // if YJIT_STATS
 
+
+#if YJIT_STATS
+
+#define BUFF_LEN 2048
+
+static void
+record_exit_stack(const VALUE *exit_pc)
+{
+    int insn = rb_vm_insn_addr2opcode((const void *)*exit_pc);
+    VALUE frames_buffer[BUFF_LEN];
+    int lines_buffer[BUFF_LEN];
+    int num = rb_profile_frames(0, sizeof(frames_buffer) / sizeof(VALUE), frames_buffer, lines_buffer);
+    int i;
+
+    if (!yjit_exit_locations.raw_samples) {
+	yjit_exit_locations.samples_capa = num * 100;
+	yjit_exit_locations.raw_samples = malloc(sizeof(VALUE) * yjit_exit_locations.samples_capa);
+	yjit_exit_locations.line_samples = malloc(sizeof(VALUE) * yjit_exit_locations.samples_capa);
+    }
+
+    /* If we can't fit all the samples in the buffer, double the buffer size. */
+    while (yjit_exit_locations.samples_capa <= yjit_exit_locations.samples_len + (num + 3)) {
+	yjit_exit_locations.samples_capa *= 2;
+	yjit_exit_locations.raw_samples = realloc(yjit_exit_locations.raw_samples, sizeof(VALUE) * yjit_exit_locations.samples_capa);
+	yjit_exit_locations.line_samples = realloc(yjit_exit_locations.line_samples, sizeof(VALUE) * yjit_exit_locations.samples_capa);
+    }
+
+    /* Bump the `raw_samples_index` up so that the next iteration can
+     * find the previously recorded stack size. */
+    yjit_exit_locations.raw_samples[yjit_exit_locations.samples_len] = (VALUE)num;
+    yjit_exit_locations.line_samples[yjit_exit_locations.samples_len] = num;
+    yjit_exit_locations.samples_len++;
+
+    for (i = num-1; i >= 0; i--) {
+        VALUE frame = frames_buffer[i];
+        int line = lines_buffer[i];
+
+        yjit_exit_locations.raw_samples[yjit_exit_locations.samples_len] = frame;
+        yjit_exit_locations.line_samples[yjit_exit_locations.samples_len] = line;
+
+        yjit_exit_locations.samples_len++;
+    }
+
+    yjit_exit_locations.raw_samples[yjit_exit_locations.samples_len] = insn;
+    int line = yjit_exit_locations.line_samples[yjit_exit_locations.samples_len - 1];
+    yjit_exit_locations.line_samples[yjit_exit_locations.samples_len] = line;
+    yjit_exit_locations.samples_len++;
+
+    // One sample on this trace
+    yjit_exit_locations.raw_samples[yjit_exit_locations.samples_len] = (VALUE)1;
+    yjit_exit_locations.line_samples[yjit_exit_locations.samples_len] = 1;
+    yjit_exit_locations.samples_len++;
+}
 #endif // if YJIT_STATS
 
 // Generate an exit to return to the interpreter
@@ -350,6 +405,9 @@ yjit_gen_exit(VALUE *exit_pc, ctx_t *ctx, codeblock_t *cb)
     if (rb_yjit_opts.gen_stats) {
         mov(cb, RDI, const_ptr_opnd(exit_pc));
         call_ptr(cb, RSI, (void *)&yjit_count_side_exit_op);
+
+        mov(cb, RDI, const_ptr_opnd(exit_pc));
+        call_ptr(cb, REG0, (void *)record_exit_stack);
     }
 #endif
 
