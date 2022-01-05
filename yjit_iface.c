@@ -12,6 +12,7 @@
 #include "yjit_codegen.h"
 #include "yjit_core.h"
 #include "darray.h"
+#include "ruby/debug.h"
 
 #ifdef HAVE_LIBCAPSTONE
 #include <capstone/capstone.h>
@@ -262,10 +263,22 @@ mark_and_pin_keys_i(st_data_t k, st_data_t v, st_data_t ignore)
     return ST_CONTINUE;
 }
 
+extern struct yjit_exit_locations_t yjit_exit_locations;
+
 // GC callback during mark phase
 static void
 yjit_root_mark(void *ptr)
 {
+        size_t idx = 0;
+        while (idx < yjit_exit_locations.raw_samples_len) {
+            int num = (int)yjit_exit_locations.raw_samples[idx++];
+
+            for (int o = 0; o < num; o++) {
+                rb_gc_mark(yjit_exit_locations.raw_samples[idx++]);
+            }
+
+            idx++;
+        }
     if (method_lookup_dependency) {
         // TODO: This is a leak. Unused blocks linger in the table forever, preventing the
         // callee class they speculate on from being collected.
@@ -746,6 +759,69 @@ static VALUE
 yjit_stats_enabled_p(rb_execution_context_t *ec, VALUE self)
 {
     return RBOOL(YJIT_STATS && rb_yjit_opts.gen_stats);
+}
+
+#if SIZEOF_VOIDP == SIZEOF_LONG
+#  define PTR2NUM(x) (LONG2NUM((long)(x)))
+#else
+#  define PTR2NUM(x) (LL2NUM((LONG_LONG)(x)))
+#endif
+
+static void
+add_frame(VALUE hash, VALUE frame)
+{
+    VALUE frame_id = PTR2NUM(frame);
+
+    //lookup in hash and return if there
+    if (RTEST(rb_hash_aref(hash, frame_id))) {
+        return;
+    } else {
+        VALUE frame_info = rb_hash_new();
+        VALUE name = rb_profile_frame_full_label(frame);
+        VALUE file = rb_profile_frame_absolute_path(frame);
+        VALUE line = rb_profile_frame_first_lineno(frame);
+
+        if (NIL_P(file)) {
+            file = rb_profile_frame_path(frame);
+        }
+
+	rb_hash_aset(frame_info, rb_intern("name"), name);
+	rb_hash_aset(frame_info, rb_intern("file"), file);
+
+	if (line != INT2FIX(0)) {
+	    rb_hash_aset(frame_info, rb_intern("line"), line);
+	}
+    }
+}
+
+static VALUE
+get_yjit_exit_locations(rb_execution_context_t *ec, VALUE self)
+{
+    // large buffer: [length, frames ..., count]
+
+    VALUE raw_samples = rb_ary_new_capa(yjit_exit_locations.raw_samples_len);
+    VALUE frames = rb_hash_new();
+    VALUE result = rb_hash_new();
+
+    size_t idx = 0;
+    while (idx < yjit_exit_locations.raw_samples_len) {
+        int num = (int)yjit_exit_locations.raw_samples[idx++];
+
+        // fprintf(stderr, "what is the num %d\n", num);
+	rb_ary_push(raw_samples, SIZET2NUM(num));
+
+	for (int o = 0; o < num; o++) {
+            add_frame(frames, yjit_exit_locations.raw_samples[idx]);
+	    rb_ary_push(raw_samples, PTR2NUM(yjit_exit_locations.raw_samples[idx++]));
+	}
+
+	rb_ary_push(raw_samples, SIZET2NUM((size_t)yjit_exit_locations.raw_samples[idx++]));
+    }
+
+    rb_hash_aset(result, rb_intern("frames"), frames);
+    rb_hash_aset(result, rb_intern("raw"), raw_samples);
+
+    return result;
 }
 
 // Primitive called in yjit.rb. Export all YJIT statistics as a Ruby hash.

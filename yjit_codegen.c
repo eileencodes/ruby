@@ -332,27 +332,50 @@ record_exit_stack()
     VALUE frames_buffer[BUFF_LEN];
     int lines_buffer[BUFF_LEN];
     int num = rb_profile_frames(0, sizeof(frames_buffer) / sizeof(VALUE), frames_buffer, lines_buffer);
+    bool found = false;
+    int i;
+    int n;
 
-    fprintf(stderr, "#####################\n");
-    for (int i = 0; i < num; i++) {
-        VALUE frame = frames_buffer[i];
-        VALUE name = rb_profile_frame_full_label(frame);
-        VALUE file = rb_profile_frame_absolute_path(frame);
-
-        if (NIL_P(file)) {
-            file = rb_profile_frame_path(frame);
-        }
-
-        VALUE line = rb_profile_frame_first_lineno(frame);
-
-        if (NIL_P(line)) {
-            line = INT2NUM(0);
-        }
-        fprintf(stderr, "%s %s: %d\n", StringValueCStr(name), StringValueCStr(file), NUM2INT(line));
+    if (!yjit_exit_locations.raw_samples) {
+	yjit_exit_locations.raw_samples_capa = num * 100;
+	yjit_exit_locations.raw_samples = malloc(sizeof(VALUE) * yjit_exit_locations.raw_samples_capa);
+        yjit_exit_locations.raw_samples[yjit_exit_locations.raw_sample_index] = 0;
     }
-    fprintf(stderr, "#####################\n");
 
-  //num = rb_profile_frames(0, sizeof(_stackprof.frames_buffer) / sizeof(VALUE), _stackprof.frames_buffer, _stackprof.lines_buffer);
+    /* If we can't fit all the samples in the buffer, double the buffer size. */
+    while (yjit_exit_locations.raw_samples_capa <= yjit_exit_locations.raw_samples_len + (num + 2)) {
+	yjit_exit_locations.raw_samples_capa *= 2;
+	yjit_exit_locations.raw_samples = realloc(yjit_exit_locations.raw_samples, sizeof(VALUE) * yjit_exit_locations.raw_samples_capa);
+    }
+
+    /* If we've seen this stack before in the last sample, then increment the "seen" count. */
+    if (yjit_exit_locations.raw_samples_len > 0 && yjit_exit_locations.raw_samples[yjit_exit_locations.raw_sample_index] == (VALUE)num) {
+	/* The number of samples could have been the same, but the stack
+	 * might be different, so we need to check the stack here.  Stacks
+	 * in the raw buffer are stored in the opposite direction of stacks
+	 * in the frames buffer that came from Ruby. */
+	for (i = num-1, n = 0; i >= 0; i--, n++) {
+	    VALUE frame = frames_buffer[i];
+	    if (yjit_exit_locations.raw_samples[yjit_exit_locations.raw_sample_index + 1 + n] != frame)
+		break;
+	}
+	if (i == -1) {
+	    yjit_exit_locations.raw_samples[yjit_exit_locations.raw_samples_len-1] += 1;
+	    found = true;
+	}
+    }
+
+    if (!found) {
+	/* Bump the `raw_sample_index` up so that the next iteration can
+	 * find the previously recorded stack size. */
+	yjit_exit_locations.raw_sample_index = yjit_exit_locations.raw_samples_len;
+	yjit_exit_locations.raw_samples[yjit_exit_locations.raw_samples_len++] = (VALUE)num;
+	for (i = num-1; i >= 0; i--) {
+	    VALUE frame = frames_buffer[i];
+	    yjit_exit_locations.raw_samples[yjit_exit_locations.raw_samples_len++] = frame;
+	}
+	yjit_exit_locations.raw_samples[yjit_exit_locations.raw_samples_len++] = (VALUE)1;
+    }
 }
 
 // Generate an exit to return to the interpreter
