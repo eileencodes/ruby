@@ -152,6 +152,10 @@ static struct yjit_exit_locations_t {
     size_t raw_samples_len;
     size_t raw_samples_capa;
     size_t raw_sample_index;
+    int *line_samples;
+    size_t line_samples_len;
+    size_t line_samples_capa;
+    size_t line_samples_index;
 } yjit_exit_locations;
 
 #endif // YJIT_STATS

@@ -785,12 +785,14 @@ add_frame(VALUE hash, VALUE frame)
             file = rb_profile_frame_path(frame);
         }
 
-	rb_hash_aset(frame_info, rb_intern("name"), name);
-	rb_hash_aset(frame_info, rb_intern("file"), file);
+	rb_hash_aset(frame_info, ID2SYM(rb_intern("name")), name);
+	rb_hash_aset(frame_info, ID2SYM(rb_intern("file")), file);
 
 	if (line != INT2FIX(0)) {
-	    rb_hash_aset(frame_info, rb_intern("line"), line);
+	    rb_hash_aset(frame_info, ID2SYM(rb_intern("line")), line);
 	}
+
+        rb_hash_aset(hash, frame_id, frame_info);
     }
 }
 
@@ -818,8 +820,8 @@ get_yjit_exit_locations(rb_execution_context_t *ec, VALUE self)
 	rb_ary_push(raw_samples, SIZET2NUM((size_t)yjit_exit_locations.raw_samples[idx++]));
     }
 
-    rb_hash_aset(result, rb_intern("frames"), frames);
-    rb_hash_aset(result, rb_intern("raw"), raw_samples);
+    rb_hash_aset(result, ID2SYM(rb_intern("frames")), frames);
+    rb_hash_aset(result, ID2SYM(rb_intern("raw")), raw_samples);
 
     return result;
 }

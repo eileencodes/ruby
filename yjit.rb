@@ -131,8 +131,65 @@ module RubyVM::YJIT
     end
   end
 
+  # frames = {
+  #   frame_id => {
+  #     :name => "method_name",
+  #     :source_file => "some_file",
+  #   },
+  #   frame_id => {
+  #     :name => "method_name",
+  #     :source_file => "some_file",
+  #   }
+  # }
   def self.exit_locations
-    Primitive.get_yjit_exit_locations
+    results = Primitive.get_yjit_exit_locations
+    raw_samples = results[:raw].dup
+    frames = results[:frames].dup
+    count = 0
+
+    frames.each do |frame_id, frame|
+      frame[:samples] = 0
+      frame[:edges] = {}
+    end
+
+    # For each sample
+    #   Get the stack frames for the sampe
+    #   For each frame in the samle
+    #     Look it up and add a sample count
+    while raw_samples.length > 0
+      length = raw_samples.shift
+      stack_trace = raw_samples.shift(length)
+
+      prev_frame_id = nil
+      # edges => { frame_id => total_samples }
+      stack_trace.each do |frame_id|
+        if prev_frame_id
+          prev_frame = frames[prev_frame_id]
+          prev_frame[:edges][frame_id] ||= 0
+          prev_frame[:edges][frame_id] += 1
+        end
+        frame_info = frames[frame_id]
+        frame_info[:total_samples] ||= 0
+        frame_info[:total_samples] += 1
+        #this frame needs to point at the next frame
+        # frame_info[:edges][next_frame_id] += 1
+        # need to get the next frame's id.
+        prev_frame_id = frame_id
+      end
+
+      top_frame_id = stack_trace.last
+
+      frames[top_frame_id][:samples] += 1
+
+      count += raw_samples.shift
+    end
+
+    results[:samples] = count
+    results[:missed_samples] = 0
+    results[:gc_samples] = 0
+    # raw is:
+    # [length, frame1, frame2, count, length, frame1, frame2, count, ...]
+    results
   end
 
   # Return a hash for statistics generated for the --yjit-stats command line option.
