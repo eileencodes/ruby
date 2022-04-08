@@ -167,6 +167,39 @@ pub extern "C" fn rb_yjit_get_stats(_ec: EcPtr, _ruby_self: VALUE) -> VALUE {
     with_vm_lock(src_loc!(), || rb_yjit_gen_stats_dict())
 }
 
+#[no_mangle]
+pub extern "C" fn rb_yjit_get_exit_locations(_ec: EcPtr, _ruby_self: VALUE) -> VALUE {
+    rb_yjit_exit_locations_dict()
+}
+
+fn rb_yjit_exit_locations_dict() -> VALUE {
+    // If YJIT is not enabled, return Qnil
+    if !yjit_enabled_p() {
+        return Qnil;
+    }
+
+    // If we're not generating stats, return Qnil
+    if !get_option!(gen_stats) {
+        return Qnil;
+    }
+
+    // TODO: make a feature for this feature, for now reusing "stats".
+    // If the stats feature is disabled, return Qnil
+    #[cfg(not(feature = "stats"))]
+    {
+        return Qnil;
+    }
+
+    // If the stats feature is enabled
+    #[cfg(feature = "stats")]
+    unsafe {
+        let hash = rb_hash_new();
+
+        // TODO: actually write the code.
+        return hash;
+    }
+}
+
 /// Export all YJIT statistics as a Ruby hash.
 fn rb_yjit_gen_stats_dict() -> VALUE {
 
@@ -264,6 +297,19 @@ pub extern "C" fn rb_yjit_collect_binding_alloc() {
 #[no_mangle]
 pub extern "C" fn rb_yjit_collect_binding_set() {
     incr_counter!(binding_set);
+}
+
+#[no_mangle]
+pub extern "C" fn rb_yjit_record_exit_stack(exit_pc: *const VALUE) -> *const VALUE
+{
+    #[cfg(not(test))]
+    unsafe {
+        // Get the opcode from the encoded insn handler at this PC
+        //let insn = rb_vm_insn_addr2opcode((*exit_pc).as_ptr());
+
+        // TODO: ok so how we make a data structure and put stuff in it?
+    }
+    return exit_pc;
 }
 
 #[no_mangle]

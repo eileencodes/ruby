@@ -818,6 +818,7 @@ void rb_yjit_root_mark(void *ptr); // in Rust
 
 // Custom type for interacting with the GC
 // TODO: make this write barrier protected
+// TODO: do we need to mark exit locations like we did in the C version?
 static const rb_data_type_t yjit_root_type = {
     "yjit_root",
     {rb_yjit_root_mark, yjit_root_free, yjit_root_memsize, yjit_root_update_references},
@@ -840,6 +841,7 @@ VALUE rb_yjit_disasm_iseq(rb_execution_context_t *ec, VALUE self, VALUE iseq);
 VALUE rb_yjit_insns_compiled(rb_execution_context_t *ec, VALUE self, VALUE iseq);
 VALUE rb_yjit_simulate_oom_bang(rb_execution_context_t *ec, VALUE self);
 VALUE rb_yjit_get_stats(rb_execution_context_t *ec, VALUE self);
+VALUE rb_yjit_get_exit_locations(rb_execution_context_t *ec, VALUE self);
 
 // Preprocessed yjit.rb generated during build
 #include "yjit.rbinc"

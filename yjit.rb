@@ -23,6 +23,10 @@ module RubyVM::YJIT
     Primitive.rb_yjit_reset_stats_bang
   end
 
+  def self.exit_locations
+    Primitive.rb_yjit_get_exit_locations
+  end
+
   # Return a hash for statistics generated for the --yjit-stats command line option.
   # Return nil when option is not passed or unavailable.
   def self.runtime_stats
