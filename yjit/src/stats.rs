@@ -195,6 +195,7 @@ fn rb_yjit_exit_locations_dict() -> VALUE {
     unsafe {
         let hash = rb_hash_new();
 
+        println!("hello!\n");
         // TODO: actually write the code.
         return hash;
     }

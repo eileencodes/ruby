@@ -24,7 +24,8 @@ module RubyVM::YJIT
   end
 
   def self.exit_locations
-    Primitive.rb_yjit_get_exit_locations
+    results = Primitive.rb_yjit_get_exit_locations
+    results
   end
 
   # Return a hash for statistics generated for the --yjit-stats command line option.
