@@ -21,6 +21,7 @@
 #include "probes.h"
 #include "probes_helper.h"
 #include "iseq.h"
+#include "ruby/debug.h"
 
 // For mmapp(), sysconf()
 #ifndef _WIN32

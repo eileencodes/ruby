@@ -213,6 +213,7 @@ fn main() {
         .allowlist_function("rb_yjit_dump_iseq_loc")
         .allowlist_function("rb_yjit_for_each_iseq")
         .allowlist_function("rb_yjit_obj_written")
+        .allowlist_function("rb_profile_frames")
 
         // from vm_sync.h
         .allowlist_function("rb_vm_barrier")

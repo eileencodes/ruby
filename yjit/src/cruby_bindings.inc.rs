@@ -679,6 +679,14 @@ extern "C" {
     pub fn rb_vm_barrier();
 }
 extern "C" {
+    pub fn rb_profile_frames(
+        start: ::std::os::raw::c_int,
+        limit: ::std::os::raw::c_int,
+        buff: *mut VALUE,
+        lines: *mut ::std::os::raw::c_int,
+    ) -> ::std::os::raw::c_int;
+}
+extern "C" {
     pub fn rb_yjit_mark_writable(mem_block: *mut ::std::os::raw::c_void, mem_size: u32);
 }
 extern "C" {
