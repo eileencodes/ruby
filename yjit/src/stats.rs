@@ -5,6 +5,7 @@ use crate::cruby::*;
 use crate::options::*;
 use crate::codegen::{CodegenGlobals};
 use crate::yjit::{yjit_enabled_p};
+use std::mem::{self, size_of};
 
 // YJIT exit counts for each instruction type
 static mut EXIT_OP_COUNT: [u64; VM_INSTRUCTION_SIZE] = [0; VM_INSTRUCTION_SIZE];
@@ -306,9 +307,14 @@ pub extern "C" fn rb_yjit_record_exit_stack(exit_pc: *const VALUE) -> *const VAL
     #[cfg(not(test))]
     unsafe {
         // Get the opcode from the encoded insn handler at this PC
-        //let insn = rb_vm_insn_addr2opcode((*exit_pc).as_ptr());
+        let insn = rb_vm_insn_addr2opcode((*exit_pc).as_ptr());
+        const BUFF_LEN: usize = 2048;
+        let mut frames_buffer: Vec<VALUE> = Vec::with_capacity(BUFF_LEN);
+        let mut lines_buffer: Vec<i32> = Vec::with_capacity(BUFF_LEN);
+        let limit = frames_buffer.capacity() / size_of::<VALUE>();
+        let num = rb_profile_frames(0, limit as i32, frames_buffer.as_mut_ptr(), lines_buffer.as_mut_ptr());
+        let i = 0;
 
-        // TODO: ok so how we make a data structure and put stuff in it?
     }
     return exit_pc;
 }
