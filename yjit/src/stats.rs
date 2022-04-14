@@ -207,24 +207,23 @@ fn rb_yjit_exit_locations_dict() -> VALUE {
     #[cfg(feature = "stats")]
     unsafe {
         let result = rb_hash_new();
-        let mut raw_samples: Vec<VALUE> = Vec::new();
-        let mut line_samples: Vec<i32> = Vec::new();
         let frames = rb_hash_new();
+
+        let raw_samples = rb_ary_new_capa(YJIT_EXIT_LOCATIONS.raw_samples.len() as i64);
+        let line_samples = rb_ary_new_capa(YJIT_EXIT_LOCATIONS.line_samples.len() as i64);
         let mut idx: u64 = 0;
 
         while idx < YJIT_EXIT_LOCATIONS.raw_samples.len() as u64 {
             let num = YJIT_EXIT_LOCATIONS.raw_samples[idx as usize];
             let line_num = YJIT_EXIT_LOCATIONS.line_samples[idx as usize];
 
-            raw_samples.push(num);
-            line_samples.push(line_num);
             idx += 1;
 
             let mut i = 0;
             // for (int o = 0; o < num; o++) {
             //for num in 0..i {
             while i < i32::from(num) {
-                rb_yjit_add_frame(frames, YJIT_EXIT_LOCATIONS.raw_samples);
+                rb_yjit_add_frame(frames, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
                 // add frame function
                 // push samples function
                 i += 1;
@@ -245,8 +244,16 @@ fn rb_yjit_exit_locations_dict() -> VALUE {
     }
 }
 
-fn rb_yjit_add_frame(hash: *const VALUE, frame: *const VALUE) {
-    println!("it works");
+fn rb_yjit_add_frame(hash: VALUE, frame: VALUE) {
+    unsafe {
+        let frame_id = frame;
+
+        if rb_hash_aref(hash, frame_id).test() {
+            return;
+        } else {
+            let frame_info = rb_hash_new();
+        }
+    }
 }
 
 
