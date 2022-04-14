@@ -10,6 +10,17 @@ use std::mem::{self, size_of};
 // YJIT exit counts for each instruction type
 static mut EXIT_OP_COUNT: [u64; VM_INSTRUCTION_SIZE] = [0; VM_INSTRUCTION_SIZE];
 
+pub struct YjitExitLocations
+{
+    raw_samples: Vec<VALUE>,
+    line_samples: Vec<i32>
+}
+
+static mut YJIT_EXIT_LOCATIONS: YjitExitLocations = YjitExitLocations {
+    raw_samples: Vec::new(),
+    line_samples: Vec::new()
+};
+
 // Macro to declare the stat counters
 macro_rules! make_counters {
     ($($counter_name:ident),+) => {
@@ -315,6 +326,23 @@ pub extern "C" fn rb_yjit_record_exit_stack(exit_pc: *const VALUE) -> *const VAL
         let num = rb_profile_frames(0, limit as i32, frames_buffer.as_mut_ptr(), lines_buffer.as_mut_ptr());
         let i = 0;
 
+        YJIT_EXIT_LOCATIONS.raw_samples.push(VALUE(num as usize));
+        YJIT_EXIT_LOCATIONS.line_samples.push(num);
+
+        for num in 0..i {
+            let frame: VALUE = frames_buffer[i];
+            let line = lines_buffer[i];
+
+            YJIT_EXIT_LOCATIONS.raw_samples.push(frame);
+            YJIT_EXIT_LOCATIONS.line_samples.push(line);
+        }
+
+        YJIT_EXIT_LOCATIONS.raw_samples.push(VALUE(insn as usize));
+        let line = YJIT_EXIT_LOCATIONS.line_samples.len() - 1;
+        YJIT_EXIT_LOCATIONS.line_samples.push(line as i32);
+
+        YJIT_EXIT_LOCATIONS.raw_samples.push(VALUE(1 as usize));
+        YJIT_EXIT_LOCATIONS.line_samples.push(1);
     }
     return exit_pc;
 }
