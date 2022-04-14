@@ -202,16 +202,51 @@ fn rb_yjit_exit_locations_dict() -> VALUE {
         return Qnil;
     }
 
+
     // If the stats feature is enabled
     #[cfg(feature = "stats")]
     unsafe {
-        let hash = rb_hash_new();
+        let result = rb_hash_new();
+        let mut raw_samples: Vec<VALUE> = Vec::new();
+        let mut line_samples: Vec<i32> = Vec::new();
+        let frames = rb_hash_new();
+        let mut idx: u64 = 0;
 
-        println!("hello!\n");
-        // TODO: actually write the code.
-        return hash;
+        while idx < YJIT_EXIT_LOCATIONS.raw_samples.len() as u64 {
+            let num = YJIT_EXIT_LOCATIONS.raw_samples[idx as usize];
+            let line_num = YJIT_EXIT_LOCATIONS.line_samples[idx as usize];
+
+            raw_samples.push(num);
+            line_samples.push(line_num);
+            idx += 1;
+
+            let i = 0;
+            for num in 0..i {
+                println!("accessed this?");
+                //rb_yjit_add_frame(frames.as_mut_ptr(), YJIT_EXIT_LOCATIONS.raw_samples.as_ptr());
+                // add frame function
+                // push samples function
+                idx += 1;
+            }
+
+            idx += 1;
+            idx += 1;
+            // push samples func
+            // push samples func
+        }
+
+        // set hash raw
+        // set hash lines
+        // set hash frames
+
+        return result;
     }
 }
+
+fn rb_yjit_add_frame(hash: *const VALUE, frame: *const VALUE) {
+    println!("it works");
+}
+
 
 /// Export all YJIT statistics as a Ruby hash.
 fn rb_yjit_gen_stats_dict() -> VALUE {
