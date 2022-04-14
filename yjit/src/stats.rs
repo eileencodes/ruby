@@ -313,7 +313,7 @@ pub extern "C" fn rb_yjit_collect_binding_set() {
 }
 
 #[no_mangle]
-pub extern "C" fn rb_yjit_record_exit_stack(exit_pc: *const VALUE) -> *const VALUE
+pub extern "C" fn rb_yjit_record_exit_stack(exit_pc: *const VALUE)
 {
     #[cfg(not(test))]
     unsafe {
@@ -344,7 +344,6 @@ pub extern "C" fn rb_yjit_record_exit_stack(exit_pc: *const VALUE) -> *const VAL
         YJIT_EXIT_LOCATIONS.raw_samples.push(VALUE(1 as usize));
         YJIT_EXIT_LOCATIONS.line_samples.push(1);
     }
-    return exit_pc;
 }
 
 #[no_mangle]
