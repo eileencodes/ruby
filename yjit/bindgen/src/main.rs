@@ -214,6 +214,11 @@ fn main() {
         .allowlist_function("rb_yjit_for_each_iseq")
         .allowlist_function("rb_yjit_obj_written")
         .allowlist_function("rb_profile_frames")
+        .allowlist_function("rb_profile_frame_full_label")
+        .allowlist_function("rb_profile_frame_absolute_path")
+        .allowlist_function("rb_profile_frame_first_lineno")
+        .allowlist_function("rb_profile_frame_path")
+        .allowlist_function("rb_ary_push")
 
         // from vm_sync.h
         .allowlist_function("rb_vm_barrier")
