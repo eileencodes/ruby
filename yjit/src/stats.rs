@@ -220,43 +220,30 @@ fn rb_yjit_exit_locations_dict() -> VALUE {
             let line_num = YJIT_EXIT_LOCATIONS.line_samples[idx as usize];
 
             rb_ary_push(raw_samples, VALUE::fixnum_from_usize(num.as_usize()));
-            //rb_ary_push(line_samples, VALUE(line_num as usize));
+            rb_ary_push(line_samples, VALUE::fixnum_from_usize(line_num as usize));
             idx += 1;
 
             let mut i = 0;
             let int_num = i32::from(num);
-            // for (int o = 0; o < num; o++) {
-            //for i in 0..int_num {
             while i < i32::from(num) {
                 //rb_yjit_add_frame(frames, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
                 rb_ary_push(raw_samples, VALUE::fixnum_from_usize(YJIT_EXIT_LOCATIONS.raw_samples[idx as usize].as_usize()));
-                //rb_ary_push(line_samples, VALUE(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
+                rb_ary_push(line_samples, VALUE::fixnum_from_usize(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
                 i += 1;
                 idx += 1;
             }
 
             rb_ary_push(raw_samples, VALUE::fixnum_from_usize(YJIT_EXIT_LOCATIONS.raw_samples[idx as usize].as_usize()));
-            //rb_ary_push(line_samples, VALUE(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
+            rb_ary_push(line_samples, VALUE::fixnum_from_usize(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
             idx += 1;
 
             rb_ary_push(raw_samples, VALUE::fixnum_from_usize(YJIT_EXIT_LOCATIONS.raw_samples[idx as usize].as_usize()));
-            //rb_ary_push(line_samples, VALUE(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
+            rb_ary_push(line_samples, VALUE::fixnum_from_usize(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
             idx += 1;
         }
 
-        // set hash raw
-        // set hash lines
-        // set hash frames
-
-        //let frame_str = CString::new("frames").unwrap();
-        //let frame_ptr: *const c_char = frame_str.as_ptr();
-
-        //rb_hash_aset(result, rb_id2sym(rb_intern(frame_ptr)), frames);
-
         rb_hash_aset(result, rust_str_to_sym("raw"), raw_samples);
         rb_hash_aset(result, rust_str_to_sym("lines"), line_samples);
-
-        //rb_hash_aset(result, rb_id2sym(rb_intern("lines")), line_samples);
 
         return result;
     }
