@@ -298,8 +298,6 @@ pub fn rb_yjit_mark_exit_locations() {
     }
 }
 
-
-
 /// Export all YJIT statistics as a Ruby hash.
 fn rb_yjit_gen_stats_dict() -> VALUE {
 
