@@ -219,7 +219,7 @@ fn rb_yjit_exit_locations_dict() -> VALUE {
             let num = YJIT_EXIT_LOCATIONS.raw_samples[idx as usize];
             let line_num = YJIT_EXIT_LOCATIONS.line_samples[idx as usize];
 
-            rb_ary_push(raw_samples, num);
+            rb_ary_push(raw_samples, VALUE::fixnum_from_usize(num.as_usize()));
             //rb_ary_push(line_samples, VALUE(line_num as usize));
             idx += 1;
 
@@ -229,17 +229,17 @@ fn rb_yjit_exit_locations_dict() -> VALUE {
             //for i in 0..int_num {
             while i < i32::from(num) {
                 //rb_yjit_add_frame(frames, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
-                rb_ary_push(raw_samples, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
+                rb_ary_push(raw_samples, VALUE::fixnum_from_usize(YJIT_EXIT_LOCATIONS.raw_samples[idx as usize].as_usize()));
                 //rb_ary_push(line_samples, VALUE(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
                 i += 1;
                 idx += 1;
             }
 
-            rb_ary_push(raw_samples, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
+            rb_ary_push(raw_samples, VALUE::fixnum_from_usize(YJIT_EXIT_LOCATIONS.raw_samples[idx as usize].as_usize()));
             //rb_ary_push(line_samples, VALUE(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
             idx += 1;
 
-            rb_ary_push(raw_samples, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
+            rb_ary_push(raw_samples, VALUE::fixnum_from_usize(YJIT_EXIT_LOCATIONS.raw_samples[idx as usize].as_usize()));
             //rb_ary_push(line_samples, VALUE(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
             idx += 1;
         }
