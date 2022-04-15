@@ -6,6 +6,8 @@ use crate::options::*;
 use crate::codegen::{CodegenGlobals};
 use crate::yjit::{yjit_enabled_p};
 use std::mem::{self, size_of};
+use std::ffi::CString;
+use std::os::raw::{c_char};
 
 // YJIT exit counts for each instruction type
 static mut EXIT_OP_COUNT: [u64; VM_INSTRUCTION_SIZE] = [0; VM_INSTRUCTION_SIZE];
@@ -206,39 +208,55 @@ fn rb_yjit_exit_locations_dict() -> VALUE {
     // If the stats feature is enabled
     #[cfg(feature = "stats")]
     unsafe {
-        let result = rb_hash_new();
-        let frames = rb_hash_new();
+        let result: VALUE = rb_hash_new();
+        let frames: VALUE = rb_hash_new();
 
-        let raw_samples = rb_ary_new_capa(YJIT_EXIT_LOCATIONS.raw_samples.len() as i64);
-        let line_samples = rb_ary_new_capa(YJIT_EXIT_LOCATIONS.line_samples.len() as i64);
-        let mut idx: u64 = 0;
+        let raw_samples: VALUE = rb_ary_new_capa(YJIT_EXIT_LOCATIONS.raw_samples.len() as i64);
+        let line_samples: VALUE = rb_ary_new_capa(YJIT_EXIT_LOCATIONS.line_samples.len() as i64);
+        let mut idx: size_t = 0;
 
-        while idx < YJIT_EXIT_LOCATIONS.raw_samples.len() as u64 {
+        while idx < YJIT_EXIT_LOCATIONS.raw_samples.len() as size_t {
             let num = YJIT_EXIT_LOCATIONS.raw_samples[idx as usize];
             let line_num = YJIT_EXIT_LOCATIONS.line_samples[idx as usize];
 
+            rb_ary_push(raw_samples, num);
+            //rb_ary_push(line_samples, VALUE(line_num as usize));
             idx += 1;
 
             let mut i = 0;
+            let int_num = i32::from(num);
             // for (int o = 0; o < num; o++) {
-            //for num in 0..i {
+            //for i in 0..int_num {
             while i < i32::from(num) {
-                rb_yjit_add_frame(frames, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
-                // add frame function
-                // push samples function
+                //rb_yjit_add_frame(frames, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
+                rb_ary_push(raw_samples, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
+                //rb_ary_push(line_samples, VALUE(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
                 i += 1;
                 idx += 1;
             }
 
+            rb_ary_push(raw_samples, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
+            //rb_ary_push(line_samples, VALUE(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
             idx += 1;
+
+            rb_ary_push(raw_samples, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
+            //rb_ary_push(line_samples, VALUE(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
             idx += 1;
-            // push samples func
-            // push samples func
         }
 
         // set hash raw
         // set hash lines
         // set hash frames
+
+        //let frame_str = CString::new("frames").unwrap();
+        //let frame_ptr: *const c_char = frame_str.as_ptr();
+
+        //rb_hash_aset(result, rb_id2sym(rb_intern(frame_ptr)), frames);
+
+        rb_hash_aset(result, rust_str_to_sym("raw"), raw_samples);
+        rb_hash_aset(result, rust_str_to_sym("lines"), line_samples);
+
+        //rb_hash_aset(result, rb_id2sym(rb_intern("lines")), line_samples);
 
         return result;
     }
@@ -252,6 +270,9 @@ fn rb_yjit_add_frame(hash: VALUE, frame: VALUE) {
             return;
         } else {
             let frame_info = rb_hash_new();
+            let name = rb_profile_frame_full_label(frame);
+            let file = rb_profile_frame_absolute_path(frame);
+            let line = rb_profile_frame_first_lineno(frame);
         }
     }
 }
@@ -366,7 +387,6 @@ pub extern "C" fn rb_yjit_record_exit_stack(exit_pc: *const VALUE)
         const BUFF_LEN: usize = 2048;
         let mut frames_buffer: [VALUE; BUFF_LEN] = [VALUE(0 as usize); BUFF_LEN];
         let mut lines_buffer: [i32; BUFF_LEN] = [0; BUFF_LEN];
-
         let num = rb_profile_frames(0, BUFF_LEN as i32, frames_buffer.as_mut_ptr(), lines_buffer.as_mut_ptr());
         let mut i = num - 1;
 
