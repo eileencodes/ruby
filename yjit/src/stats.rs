@@ -224,9 +224,8 @@ fn rb_yjit_exit_locations_dict() -> VALUE {
             idx += 1;
 
             let mut i = 0;
-            let int_num = i32::from(num);
             while i < i32::from(num) {
-                //rb_yjit_add_frame(frames, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
+                rb_yjit_add_frame(frames, YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
                 rb_ary_push(raw_samples, VALUE::fixnum_from_usize(YJIT_EXIT_LOCATIONS.raw_samples[idx as usize].as_usize()));
                 rb_ary_push(line_samples, VALUE::fixnum_from_usize(YJIT_EXIT_LOCATIONS.line_samples[idx as usize] as usize));
                 i += 1;
@@ -242,6 +241,7 @@ fn rb_yjit_exit_locations_dict() -> VALUE {
             idx += 1;
         }
 
+        rb_hash_aset(result, rust_str_to_sym("frames"), frames);
         rb_hash_aset(result, rust_str_to_sym("raw"), raw_samples);
         rb_hash_aset(result, rust_str_to_sym("lines"), line_samples);
 
@@ -251,7 +251,7 @@ fn rb_yjit_exit_locations_dict() -> VALUE {
 
 fn rb_yjit_add_frame(hash: VALUE, frame: VALUE) {
     unsafe {
-        let frame_id = frame;
+        let frame_id = VALUE::fixnum_from_usize(frame.as_usize());
 
         if rb_hash_aref(hash, frame_id).test() {
             return;
@@ -260,9 +260,44 @@ fn rb_yjit_add_frame(hash: VALUE, frame: VALUE) {
             let name = rb_profile_frame_full_label(frame);
             let file = rb_profile_frame_absolute_path(frame);
             let line = rb_profile_frame_first_lineno(frame);
+
+            if file.nil_p() {
+                let file = rb_profile_frame_path(frame);
+            }
+
+            rb_hash_aset(frame_info, rust_str_to_sym("name"), name);
+            rb_hash_aset(frame_info, rust_str_to_sym("file"), file);
+
+            if line.as_usize() != 0 {
+                rb_hash_aset(frame_info, rust_str_to_sym("line"), line);
+            }
+
+            rb_hash_aset(hash, frame_id, frame_info);
         }
     }
 }
+
+pub fn rb_yjit_mark_exit_locations() {
+    unsafe {
+        let mut idx: size_t = 0;
+        while idx < YJIT_EXIT_LOCATIONS.raw_samples.len() as size_t {
+            let num = YJIT_EXIT_LOCATIONS.raw_samples[idx as usize];
+            let mut i = 0;
+
+            idx += 1;
+
+            while i < i32::from(num) {
+                rb_gc_mark(YJIT_EXIT_LOCATIONS.raw_samples[idx as usize]);
+                i += 1;
+                idx += 1;
+            }
+
+            idx += 1;
+            idx += 1;
+        }
+    }
+}
+
 
 
 /// Export all YJIT statistics as a Ruby hash.

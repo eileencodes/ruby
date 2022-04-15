@@ -238,6 +238,7 @@ pub extern "C" fn rb_yjit_constant_state_changed() {
 /// See `struct yjijt_root_struct` in C.
 #[no_mangle]
 pub extern "C" fn rb_yjit_root_mark() {
+    rb_yjit_mark_exit_locations();
     // Comment from C YJIT:
     //
     // Why not let the GC move the cme keys in this table?
