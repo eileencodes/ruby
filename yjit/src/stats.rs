@@ -5,8 +5,6 @@ use crate::cruby::*;
 use crate::options::*;
 use crate::codegen::{CodegenGlobals};
 use crate::yjit::{yjit_enabled_p};
-use std::mem::{self, size_of};
-use std::ffi::CString;
 use std::os::raw::{c_char};
 
 // YJIT exit counts for each instruction type
@@ -405,18 +403,16 @@ pub extern "C" fn rb_yjit_record_exit_stack(exit_pc: *const VALUE)
         // Get the opcode from the encoded insn handler at this PC
         let insn = rb_vm_insn_addr2opcode((*exit_pc).as_ptr());
         const BUFF_LEN: usize = 2048;
-        let mut frames_buffer: [VALUE; BUFF_LEN] = [VALUE(0 as usize); BUFF_LEN];
-        let mut lines_buffer: [i32; BUFF_LEN] = [0; BUFF_LEN];
+        let mut frames_buffer = [VALUE(0 as usize); BUFF_LEN];
+        let mut lines_buffer = [0; BUFF_LEN];
         let num = rb_profile_frames(0, BUFF_LEN as i32, frames_buffer.as_mut_ptr(), lines_buffer.as_mut_ptr());
         let mut i = num - 1;
 
         YJIT_EXIT_LOCATIONS.raw_samples.push(VALUE(num as usize));
         YJIT_EXIT_LOCATIONS.line_samples.push(num);
 
-        //for (i = num-1; i >= 0; i--) {
-        // for num in 0..i {
         while i >= 0 {
-            let frame: VALUE = frames_buffer[i as usize];
+            let frame = frames_buffer[i as usize];
             let line = lines_buffer[i as usize];
 
             YJIT_EXIT_LOCATIONS.raw_samples.push(frame);
