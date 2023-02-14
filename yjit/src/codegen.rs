@@ -1866,6 +1866,36 @@ fn gen_jbe_to_target0(
     }
 }
 
+// WIP guard for ivar only
+fn megamorphic_jit_chain_guard(
+    jcc: JCCKinds,
+    jit: &JITState,
+    ctx: &Context,
+    asm: &mut Assembler,
+    ocb: &mut OutlinedCb,
+    depth_limit: i32,
+    side_exit: Target,
+) {
+    let target0_gen_fn = match jcc {
+        JCC_JNE | JCC_JNZ => gen_jnz_to_target0,
+        JCC_JZ | JCC_JE => gen_jz_to_target0,
+        JCC_JBE | JCC_JNA => gen_jbe_to_target0,
+    };
+
+    if (ctx.get_chain_depth() as i32) < depth_limit {
+        let mut deeper = ctx.clone();
+        deeper.increment_chain_depth();
+        let bid = BlockId {
+            iseq: jit.iseq,
+            idx: jit.insn_idx,
+        };
+
+        gen_branch(jit, asm, ocb, bid, &deeper, None, None, target0_gen_fn);
+    } else {
+        target0_gen_fn(asm, side_exit.unwrap_code_ptr(), None, BranchShape::Default);
+    }
+}
+
 // Generate a jump to a stub that recompiles the current YARV instruction on failure.
 // When depth_limit is exceeded, generate a jump to a side exit.
 fn jit_chain_guard(
@@ -2064,7 +2094,7 @@ fn gen_get_ivar(
     asm.comment("guard shape");
     asm.cmp(shape_opnd, Opnd::UImm(expected_shape as u64));
     let megamorphic_side_exit = counted_exit!(ocb, side_exit, getivar_megamorphic);
-    jit_chain_guard(
+    megamorphic_jit_chain_guard(
         JCC_JNE,
         jit,
         &starting_context,
