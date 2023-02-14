@@ -1869,12 +1869,15 @@ fn gen_jbe_to_target0(
 // WIP guard for ivar only
 fn megamorphic_jit_chain_guard(
     jcc: JCCKinds,
-    jit: &JITState,
+    jit: &mut JITState,
     ctx: &Context,
     asm: &mut Assembler,
     ocb: &mut OutlinedCb,
     depth_limit: i32,
     side_exit: Target,
+    ivar_name: ID,
+    recv: Opnd,
+    recv_opnd: YARVOpnd,
 ) {
     let target0_gen_fn = match jcc {
         JCC_JNE | JCC_JNZ => gen_jnz_to_target0,
@@ -1892,7 +1895,12 @@ fn megamorphic_jit_chain_guard(
 
         gen_branch(jit, asm, ocb, bid, &deeper, None, None, target0_gen_fn);
     } else {
-        target0_gen_fn(asm, side_exit.unwrap_code_ptr(), None, BranchShape::Default);
+        //target0_gen_fn(asm, side_exit.unwrap_code_ptr(), None, BranchShape::Default);
+        // missing ivar_name
+        // rec
+        // recv_opnd
+        let mut ctx_mut = ctx;
+        call_rb_ivar_get(jit, ctx_mut, asm, ivar_name, recv, recv_opnd);
     }
 }
 
@@ -2033,22 +2041,7 @@ fn gen_get_ivar(
     //       inside object shapes.
     // too-complex shapes can't use index access, so we use rb_ivar_get for them too.
     if !receiver_t_object || uses_custom_allocator || comptime_receiver.shape_too_complex() {
-        // General case. Call rb_ivar_get().
-        // VALUE rb_ivar_get(VALUE obj, ID id)
-        asm.comment("call rb_ivar_get()");
-
-        // The function could raise exceptions.
-        jit_prepare_routine_call(jit, ctx, asm);
-
-        let ivar_val = asm.ccall(rb_ivar_get as *const u8, vec![recv, Opnd::UImm(ivar_name)]);
-
-        if recv_opnd != SelfOpnd {
-            ctx.stack_pop(1);
-        }
-
-        // Push the ivar on the stack
-        let out_opnd = ctx.stack_push(Type::Unknown);
-        asm.mov(out_opnd, ivar_val);
+        call_rb_ivar_get(jit, ctx, asm, ivar_name, recv, recv_opnd);
 
         // Jump to next instruction. This allows guard chains to share the same successor.
         jump_to_next_insn(jit, ctx, asm, ocb);
@@ -2102,6 +2095,9 @@ fn gen_get_ivar(
         ocb,
         max_chain_depth,
         megamorphic_side_exit,
+        ivar_name,
+        recv,
+        recv_opnd,
     );
 
     match ivar_index {
@@ -2141,6 +2137,32 @@ fn gen_get_ivar(
     // Jump to next instruction. This allows guard chains to share the same successor.
     jump_to_next_insn(jit, ctx, asm, ocb);
     EndBlock
+}
+
+fn call_rb_ivar_get(
+    jit: &mut JITState,
+    ctx: &mut Context,
+    asm: &mut Assembler,
+    ivar_name: ID,
+    recv: Opnd,
+    recv_opnd: YARVOpnd,
+) {
+    // General case. Call rb_ivar_get().
+    // VALUE rb_ivar_get(VALUE obj, ID id)
+    asm.comment("call rb_ivar_get()");
+
+    // The function could raise exceptions.
+    jit_prepare_routine_call(jit, ctx, asm);
+
+    let ivar_val = asm.ccall(rb_ivar_get as *const u8, vec![recv, Opnd::UImm(ivar_name)]);
+
+    if recv_opnd != SelfOpnd {
+        ctx.stack_pop(1);
+    }
+
+    // Push the ivar on the stack
+    let out_opnd = ctx.stack_push(Type::Unknown);
+    asm.mov(out_opnd, ivar_val);
 }
 
 fn gen_getinstancevariable(
