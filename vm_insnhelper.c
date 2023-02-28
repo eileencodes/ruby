@@ -1216,6 +1216,64 @@ ic_shape_id_hit_increment(st_data_t *key, st_data_t *value, st_data_t _, int exi
     return ST_CONTINUE;
 }
 
+struct shape_and_class {
+    VALUE class;
+    shape_id_t shape_id;
+};
+
+static int
+ic_class_inc(st_data_t *class, st_data_t *value, st_data_t context, int existing)
+{
+    if (!existing) {
+        *value = (st_data_t)0;
+    }
+
+    *value = (st_data_t)((*value) + 1);
+
+    return ST_CONTINUE;
+}
+
+// value = { klass => seen }
+static int
+ic_class_cb(st_data_t *shape_id, st_data_t *value, st_data_t context, int existing)
+{
+    st_table * class_set;
+    struct shape_and_class * ctx = (struct shape_and_class *)context;
+
+    if (!existing) {
+        class_set = st_init_numtable_with_size(128);
+        *value = (st_data_t)class_set;
+    }
+    else {
+        class_set = (st_table *)*value;
+    }
+
+    st_update(class_set, ctx->class, ic_class_inc, 0);
+
+    return ST_CONTINUE;
+}
+
+// { PC => { shape => { klass => seen_count } } }
+// value == { shape => ... }
+static int
+ic_class_and_shape_cb(st_data_t *PC, st_data_t *value, st_data_t context, int existing)
+{
+    st_table * shape_set;
+    struct shape_and_class * ctx = (struct shape_and_class *)context;
+
+    if (!existing) {
+        shape_set = st_init_numtable_with_size(128);
+        *value = (st_data_t)shape_set;
+    }
+    else {
+        shape_set = (st_table *)*value;
+    }
+
+    st_update(shape_set, ctx->shape_id, ic_class_cb, context);
+
+    return ST_CONTINUE;
+}
+
 static int
 ic_hit_cb(st_data_t *key, st_data_t *value, st_data_t shape_id, int existing)
 {
@@ -1310,7 +1368,13 @@ vm_getivar(VALUE obj, ID id, const rb_iseq_t *iseq, IVC ic, const struct rb_call
 
         // Log hit information
         if (GET_VM()->log_ic_info) {
+            struct shape_and_class context;
+            context.shape_id = shape_id;
+            context.class = rb_obj_class(obj);
+
             st_update(GET_VM()->ic_stats, (st_data_t)GET_EC()->cfp->pc, ic_hit_cb, (st_data_t)shape_id);
+            rb_hash_aset(GET_VM()->ic_classes, context.class, Qtrue);
+            st_update(GET_VM()->ic_class_stats, (st_data_t)GET_EC()->cfp->pc, ic_class_and_shape_cb, (st_data_t) &context);
             st_insert(GET_VM()->pc_to_iseq, (st_data_t)GET_EC()->cfp->pc, (st_data_t)GET_EC()->cfp->iseq);
         }
 
@@ -1354,6 +1418,12 @@ vm_getivar(VALUE obj, ID id, const rb_iseq_t *iseq, IVC ic, const struct rb_call
 #endif
 
         if (GET_VM()->log_ic_info) {
+            struct shape_and_class context;
+            context.shape_id = shape_id;
+            context.class = rb_obj_class(obj);
+
+            st_update(GET_VM()->ic_class_stats, (st_data_t)GET_EC()->cfp->pc, ic_class_and_shape_cb, (st_data_t) &context);
+            rb_hash_aset(GET_VM()->ic_classes, context.class, Qtrue);
             st_update(GET_VM()->ic_stats, (st_data_t)GET_EC()->cfp->pc, ic_miss_cb, (st_data_t)shape_id);
             st_insert(GET_VM()->pc_to_iseq, (st_data_t)GET_EC()->cfp->pc, (st_data_t)GET_EC()->cfp->iseq);
         }

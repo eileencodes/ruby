@@ -2811,6 +2811,8 @@ rb_vm_mark(void *ptr)
             rb_mark_tbl(vm->pc_to_iseq);
         }
 
+        rb_gc_mark(vm->ic_classes);
+
         len = RARRAY_LEN(vm->mark_object_ary);
         obj_ary = RARRAY_CONST_PTR(vm->mark_object_ary);
         for (i=0; i < len; i++) {
@@ -3669,6 +3671,7 @@ vm_keep_script_lines_set(VALUE self, VALUE flags)
 struct ic_info_ctx {
     FILE * out_file;
     uintptr_t pc;
+    shape_id_t shape_id;
 };
 
 int calc_lineno(const rb_iseq_t *iseq, const VALUE *pc);
@@ -3715,6 +3718,67 @@ iterate_ic_stat(st_data_t key, st_data_t value, st_data_t file)
     return ST_CONTINUE;
 }
 
+static int
+iterate_ic_class_seen(st_data_t class, st_data_t value, st_data_t ctx)
+{
+    uint64_t seen_count = (uint64_t)value;
+
+    struct ic_info_ctx *info_ctx;
+    info_ctx = (struct ic_info_ctx *)ctx;
+
+    // Get map of pc to iseq
+    st_table * pc_to_iseq = GET_VM()->pc_to_iseq;
+    rb_iseq_t *iseq;
+    int lineno = 0;
+    char * file_path = "unknown\0";
+
+    // Get line and file for pc
+    if(st_lookup(pc_to_iseq, info_ctx->pc, (st_data_t *)&iseq)) {
+        VALUE path = rb_iseq_path(iseq);
+
+        lineno = calc_lineno(iseq, (const VALUE *)info_ctx->pc);
+        file_path = StringValueCStr(path);
+    }
+
+    fprintf(info_ctx->out_file, "%#018lx,%d,%#018lx,%u,%s:%d\n", info_ctx->pc,
+        info_ctx->shape_id,
+        class,
+        seen_count,
+        file_path,
+        lineno);
+
+    return ST_CONTINUE;
+}
+
+static int
+iterate_ic_shape_class(st_data_t shape_id, st_data_t value, st_data_t ctx)
+{
+    st_table * class_info = (st_table *)value;
+
+    struct ic_info_ctx *info_ctx;
+    info_ctx = (struct ic_info_ctx *)ctx;
+    info_ctx->shape_id = (shape_id_t)shape_id;
+
+    st_foreach(class_info, iterate_ic_class_seen, ctx);
+
+    return ST_CONTINUE;
+}
+
+// { PC => { shape => { klass => seen_count } } }
+static int
+iterate_ic_class_stat(st_data_t pc, st_data_t value, st_data_t ctx)
+{
+    st_table * shape_info = (st_table *)value;
+
+    struct ic_info_ctx *info_ctx;
+    info_ctx = (struct ic_info_ctx *)ctx;
+    info_ctx->pc = (uintptr_t)pc;
+
+    st_foreach(shape_info, iterate_ic_shape_class, ctx);
+
+    return ST_CONTINUE;
+}
+
 static VALUE
 vm_dump_ic_info(VALUE mod, VALUE file)
 {
@@ -3728,6 +3792,25 @@ vm_dump_ic_info(VALUE mod, VALUE file)
     return Qnil;
 }
 
+// { PC => { shape => { klass => seen_count } } }
+//
+static VALUE
+vm_dump_ic_class_info(VALUE mod, VALUE file)
+{
+    FILE * f = rb_fdopen(rb_io_descriptor(file), "wb");
+    fprintf(f, "pc,shape_id,class,seen,file\n");
+
+    struct ic_info_ctx ctx;
+    ctx.out_file = f;
+
+    st_foreach(GET_VM()->ic_class_stats, iterate_ic_class_stat, (st_data_t) &ctx);
+
+    fflush(f);
+
+    return Qnil;
+}
+
+
 static int
 free_cb(st_data_t key, st_data_t value, st_data_t arg)
 {
@@ -3740,8 +3823,14 @@ vm_clear_logging_ic_data(VALUE mod)
 {
     rb_vm_t * vm = GET_VM();
 
+    // TODO: Free ic_class_stats
+
     if (vm->ic_stats) {
         st_foreach(vm->ic_stats, free_cb, 0);
+    }
+
+    if (vm->ic_class_stats) {
+      // TODO: Deallocated
     }
 
     if (vm->pc_to_iseq) {
@@ -3749,6 +3838,8 @@ vm_clear_logging_ic_data(VALUE mod)
     }
 
     vm->ic_stats = NULL;
+    vm->ic_class_stats = NULL;
+    vm->ic_classes = Qnil;
     vm->pc_to_iseq = NULL;
 
     return Qnil;
@@ -3762,6 +3853,8 @@ vm_start_logging_ic_data(VALUE mod)
     vm_clear_logging_ic_data(mod);
 
     vm->ic_stats = st_init_numtable_with_size(128);
+    vm->ic_class_stats = st_init_numtable_with_size(128);
+    vm->ic_classes = rb_hash_new();
     vm->pc_to_iseq = st_init_numtable_with_size(128);
 
     vm->log_ic_info = true;
@@ -3807,6 +3900,7 @@ Init_VM(void)
     rb_define_singleton_method(rb_cRubyVM, "stop_logging_ic_data", vm_stop_logging_ic_data, 0);
     rb_define_singleton_method(rb_cRubyVM, "clear_logging_ic_data", vm_clear_logging_ic_data, 0);
     rb_define_singleton_method(rb_cRubyVM, "dump_ic_info", vm_dump_ic_info, 1);
+    rb_define_singleton_method(rb_cRubyVM, "dump_ic_class_info", vm_dump_ic_class_info, 1);
 
 #if USE_DEBUG_COUNTER
     rb_define_singleton_method(rb_cRubyVM, "reset_debug_counters", rb_debug_counter_reset, 0);
