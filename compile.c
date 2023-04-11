@@ -7436,10 +7436,12 @@ compile_loop(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const node, in
         tmp_label = NEW_LABEL(line);
         ADD_INSNL(ret, line_node, jump, tmp_label);
     }
+
     ADD_LABEL(ret, adjust_label);
-    ADD_INSN(ret, line_node, putnil);
-    ADD_LABEL(ret, next_catch_label);
-    ADD_INSN(ret, line_node, pop);
+
+    // Get the current link element
+    INSN * elem = (INSN *)ret->last; // ?
+
     ADD_INSNL(ret, line_node, jump, next_label);
     if (tmp_label) ADD_LABEL(ret, tmp_label);
 
@@ -7483,12 +7485,18 @@ compile_loop(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const node, in
         ADD_INSN(ret, line_node, pop);
     }
 
-    ADD_CATCH_ENTRY(CATCH_TYPE_BREAK, redo_label, break_label, NULL,
-                    break_label);
-    ADD_CATCH_ENTRY(CATCH_TYPE_NEXT, redo_label, break_label, NULL,
-                    next_catch_label);
-    ADD_CATCH_ENTRY(CATCH_TYPE_REDO, redo_label, break_label, NULL,
-                    ISEQ_COMPILE_DATA(iseq)->redo_label);
+    if (ISEQ_COMPILE_DATA(iseq)->catch_except_p) {
+	INSERT_AFTER_INSN(elem, line_node, putnil);
+	APPEND_LABEL(ret, elem->link.next, next_catch_label);
+	INSERT_AFTER_INSN((INSN *)elem->link.next->next, line_node, pop);
+
+        ADD_CATCH_ENTRY(CATCH_TYPE_BREAK, redo_label, break_label, NULL,
+            break_label);
+        ADD_CATCH_ENTRY(CATCH_TYPE_NEXT, redo_label, break_label, NULL,
+            next_catch_label);
+        ADD_CATCH_ENTRY(CATCH_TYPE_REDO, redo_label, break_label, NULL,
+            ISEQ_COMPILE_DATA(iseq)->redo_label);
+    }
 
     ISEQ_COMPILE_DATA(iseq)->start_label = prev_start_label;
     ISEQ_COMPILE_DATA(iseq)->end_label = prev_end_label;
