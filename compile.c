@@ -586,7 +586,9 @@ APPEND_ELEM(ISEQ_ARG_DECLARE LINK_ANCHOR *const anchor, LINK_ELEMENT *before, LI
 {
     elem->prev = before;
     elem->next = before->next;
-    elem->next->prev = elem;
+    // If `before` is the last element in the LL, then there is no
+    // `next` element to update.
+    if (elem->next) elem->next->prev = elem;
     before->next = elem;
     if (before == anchor->last) anchor->last = elem;
     verify_list("add", anchor);
@@ -7437,8 +7439,6 @@ compile_loop(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const node, in
         ADD_INSNL(ret, line_node, jump, tmp_label);
     }
 
-    ADD_LABEL(ret, adjust_label);
-
     // Get the current link element
     INSN * elem = (INSN *)ret->last; // ?
 
@@ -7479,16 +7479,28 @@ compile_loop(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const node, in
         ADD_INSN(ret, line_node, putnil);
     }
 
-    ADD_LABEL(ret, break_label);	/* break */
+    // Get the current link element
+    INSN * break_label_location = (INSN *)ret->last;
 
     if (popped) {
         ADD_INSN(ret, line_node, pop);
     }
 
     if (ISEQ_COMPILE_DATA(iseq)->catch_except_p) {
-	INSERT_AFTER_INSN(elem, line_node, putnil);
-	APPEND_LABEL(ret, elem->link.next, next_catch_label);
-	INSERT_AFTER_INSN((INSN *)elem->link.next->next, line_node, pop);
+      // while loops return nil, so there needs to be a nil on the stack
+      // "adjust stack" is messing up stack size calculations
+      // Next step: understand how adjust stack works, then see if we
+      // can eliminate the adjust stack label
+      //
+      // SP calculation seems to care about the label.  Why?
+      // We should read how stack over/underflow checks work.
+        APPEND_LABEL(ret, (LINK_ELEMENT *)break_label_location, break_label);	/* break */
+
+        APPEND_LABEL(ret, (LINK_ELEMENT *)elem, adjust_label);
+
+	INSERT_AFTER_INSN((INSN *)elem->link.next, line_node, putnil);
+	APPEND_LABEL(ret, elem->link.next->next, next_catch_label);
+	INSERT_AFTER_INSN((INSN *)elem->link.next->next->next, line_node, pop);
 
         ADD_CATCH_ENTRY(CATCH_TYPE_BREAK, redo_label, break_label, NULL,
             break_label);
