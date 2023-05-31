@@ -450,6 +450,15 @@ class TestMethod < Test::Unit::TestCase
     assert_equal(:bar, m.clone.bar)
   end
 
+  def test_dup
+    o = Object.new
+    def o.foo; :foo; end
+    m = o.method(:foo)
+    def m.bar; :bar; end
+    assert_equal(:foo, m.dup.call)
+    assert_equal(:bar, m.dup.bar)
+  end
+
   def test_inspect
     o = Object.new
     def o.foo; end; line_no = __LINE__
