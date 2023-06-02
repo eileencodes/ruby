@@ -4,7 +4,7 @@ class Foo
   end
 
   def foo
-    @foo
+    "lol"
   end
 end
 
@@ -14,7 +14,9 @@ end
 m = Foo.instance_method(:foo)
 # Call iseq dump / load from our new function,
 # then assign the new iseq to the method definition
-m.dup
+z = m.dup
+p z.bind_call(Bar.new)
+exit
 p Marshal.load Marshal.dump(m)
 
 # Do these two lines in C
