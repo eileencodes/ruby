@@ -1054,5 +1054,20 @@ class TestRange < Test::Unit::TestCase
 
   def test_count
     assert_equal(Float::INFINITY, (1..).count)
+    assert_equal 42, (1..42).count
+    assert_equal 41, (1...42).count
+    assert_equal 6, (1...6.3).count
+    assert_equal 5, (1.1...6).count
+    assert_equal 42, (1..42).each.count
+    assert_equal 25, ("a"..."z").count
+    assert_equal Float::INFINITY, ("a"...).count
+    assert_equal Float::INFINITY, (..."z").count
+    assert_equal Float::INFINITY, (nil...nil).count
+    assert_equal Float::INFINITY, (1...).count
+    assert_equal Float::INFINITY, (1.0...).count
+    assert_equal Float::INFINITY, (...1).count
+    assert_equal Float::INFINITY, (...1.0).count
+
+    assert_raise(TypeError) { (0.51..5).each { } }
   end
 end

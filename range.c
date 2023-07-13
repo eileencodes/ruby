@@ -2126,6 +2126,9 @@ range_alloc(VALUE klass)
 static VALUE
 range_count(int argc, VALUE *argv, VALUE range)
 {
+    VALUE beg = RANGE_BEG(range);
+    VALUE end = RANGE_END(range);
+
     if (argc != 0) {
         /* It is odd for instance (1...).count(0) to return Infinity. Just let
          * it loop. */
@@ -2136,13 +2139,17 @@ range_count(int argc, VALUE *argv, VALUE range)
          * Infinity. Just let it loop. */
         return rb_call_super(argc, argv);
     }
-    else if (NIL_P(RANGE_END(range))) {
+    else if (NIL_P(end)) {
         /* We are confident that the answer is Infinity. */
         return DBL2NUM(HUGE_VAL);
     }
-    else if (NIL_P(RANGE_BEG(range))) {
+    else if (NIL_P(beg)) {
         /* We are confident that the answer is Infinity. */
         return DBL2NUM(HUGE_VAL);
+    }
+    else if (rb_obj_is_kind_of(beg, rb_cNumeric) && rb_obj_is_kind_of(end, rb_cNumeric)) {
+        /* Both the beginning and end of the range are numeric and there's no block */
+        return ruby_num_interval_step_size(beg, end, INT2FIX(1), EXCL(range));
     }
     else {
         return rb_call_super(argc, argv);
