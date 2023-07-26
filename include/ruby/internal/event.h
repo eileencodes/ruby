@@ -97,6 +97,7 @@
 #define RUBY_INTERNAL_EVENT_GC_ENTER       0x2000000 /**< `gc_enter()` is called. */
 #define RUBY_INTERNAL_EVENT_GC_EXIT        0x4000000 /**< `gc_exit()` is called. */
 #define RUBY_INTERNAL_EVENT_OBJSPACE_MASK  0x7f00000 /**< Bitmask of GC events. */
+#define RUBY_INTERNAL_EVENT_IVAR_READ     0x10000000 /**< Encountered an IVAR read. */
 #define RUBY_INTERNAL_EVENT_MASK          0xffff0000 /**< Bitmask of internal events. */
 
 /** @} */

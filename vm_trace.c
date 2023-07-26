@@ -1010,6 +1010,12 @@ rb_tracearg_return_value(rb_trace_arg_t *trace_arg)
     return trace_arg->data;
 }
 
+rb_trace_ivar_read_info_t *
+rb_tracearg_ivar_read_info(rb_trace_arg_t *trace_arg)
+{
+    return (rb_trace_ivar_read_info_t *)trace_arg->data;
+}
+
 VALUE
 rb_tracearg_raised_exception(rb_trace_arg_t *trace_arg)
 {

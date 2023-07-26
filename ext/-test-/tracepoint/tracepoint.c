@@ -76,6 +76,35 @@ tracepoint_track_objspace_events(VALUE self)
     return result;
 }
 
+static void
+tracepoint_track_ivar_read_events_i(VALUE tpval, void *data)
+{
+    rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
+    VALUE ivar_track = data;
+
+    switch (rb_tracearg_event_flag(tparg)) {
+      case RUBY_INTERNAL_EVENT_IVAR_READ:
+        {
+            rb_trace_ivar_read_info_t * ivar_read_info = rb_tracearg_ivar_read_info(tparg);
+            rb_ary_push(ivar_track, RB_ID2SYM(ivar_read_info->name));
+            rb_ary_push(ivar_track, ivar_read_info->hit ? Qtrue : Qfalse);
+            break;
+        }
+    }
+}
+
+static VALUE
+tracepoint_track_ivar_read_events(VALUE self)
+{
+    VALUE track = rb_ary_new();
+    VALUE tpval = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_IVAR_READ, tracepoint_track_ivar_read_events_i, (void *)track);
+
+    rb_tracepoint_enable(tpval);
+    rb_ensure(rb_yield, Qundef, rb_tracepoint_disable, tpval);
+
+    return track;
+}
+
 static VALUE
 tracepoint_specify_normal_and_internal_events(VALUE self)
 {
@@ -92,5 +121,6 @@ Init_tracepoint(void)
     VALUE mBug = rb_define_module("Bug");
     Init_gc_hook(mBug);
     rb_define_module_function(mBug, "tracepoint_track_objspace_events", tracepoint_track_objspace_events, 0);
+    rb_define_module_function(mBug, "tracepoint_track_ivar_read_events", tracepoint_track_ivar_read_events, 0);
     rb_define_module_function(mBug, "tracepoint_specify_normal_and_internal_events", tracepoint_specify_normal_and_internal_events, 0);
 }

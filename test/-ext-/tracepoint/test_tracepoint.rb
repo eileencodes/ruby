@@ -28,6 +28,26 @@ class TestTracepointObj < Test::Unit::TestCase
     assert_operator gc_start_count, :>=, gc_end_sweep_count
   end
 
+  class IvarClass
+    def initialize
+      @a = 1
+    end
+
+    def read
+      @a
+    end
+  end
+
+  def test_tracks_ivar_reads
+    ivar_class = IvarClass.new
+    result = Bug.tracepoint_track_ivar_read_events{
+      ivar_class.read
+      ivar_class.read
+    }
+
+    assert_equal [:@a, false, :@a, true], result
+  end
+
   def test_tracks_objspace_count
     stat1 = {}
     stat2 = {}

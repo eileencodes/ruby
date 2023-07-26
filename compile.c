@@ -9768,6 +9768,7 @@ iseq_compile_each0(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const no
       case NODE_IVAR:{
         debugi("nd_vid", node->nd_vid);
         if (!popped) {
+            ADD_TRACE(ret, RUBY_INTERNAL_EVENT_IVAR_READ);
             ADD_INSN2(ret, node, getinstancevariable,
                       ID2SYM(node->nd_vid),
                       get_ivar_ic_value(iseq,node->nd_vid));

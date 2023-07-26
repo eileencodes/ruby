@@ -444,6 +444,11 @@ VALUE rb_tracepoint_enabled_p(VALUE tpval);
  */
 typedef struct rb_trace_arg_struct rb_trace_arg_t;
 
+typedef struct rb_trace_ivar_read_info {
+    ID name;
+    bool hit;
+} rb_trace_ivar_read_info_t;
+
 RBIMPL_ATTR_RETURNS_NONNULL()
 /**
  * Queries the current event of the passed tracepoint.
@@ -458,6 +463,8 @@ RBIMPL_ATTR_RETURNS_NONNULL()
  * time.  This function just returns that global variable.
  */
 rb_trace_arg_t *rb_tracearg_from_tracepoint(VALUE tpval);
+
+rb_trace_ivar_read_info_t * rb_tracearg_ivar_read_info(rb_trace_arg_t *trace_arg);
 
 RBIMPL_ATTR_NONNULL(())
 /**
