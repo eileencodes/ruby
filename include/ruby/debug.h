@@ -444,10 +444,10 @@ VALUE rb_tracepoint_enabled_p(VALUE tpval);
  */
 typedef struct rb_trace_arg_struct rb_trace_arg_t;
 
-typedef struct rb_trace_ivar_read_info {
+typedef struct rb_trace_ivar_info {
     ID name;
     bool hit;
-} rb_trace_ivar_read_info_t;
+} rb_trace_ivar_info_t;
 
 RBIMPL_ATTR_RETURNS_NONNULL()
 /**
@@ -464,7 +464,7 @@ RBIMPL_ATTR_RETURNS_NONNULL()
  */
 rb_trace_arg_t *rb_tracearg_from_tracepoint(VALUE tpval);
 
-rb_trace_ivar_read_info_t * rb_tracearg_ivar_read_info(rb_trace_arg_t *trace_arg);
+rb_trace_ivar_info_t * rb_tracearg_ivar_info(rb_trace_arg_t *trace_arg);
 
 RBIMPL_ATTR_NONNULL(())
 /**

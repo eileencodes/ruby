@@ -2216,7 +2216,7 @@ rb_iseq_disasm_insn(VALUE ret, const VALUE *code, size_t pos,
     {
         rb_event_flag_t events = rb_iseq_event_flags(iseq, pos);
         if (events) {
-            str = rb_str_catf(str, "[%s%s%s%s%s%s%s%s%s%s%s%s]",
+            str = rb_str_catf(str, "[%s%s%s%s%s%s%s%s%s%s%s%s%s]",
                               events & RUBY_EVENT_LINE     ? "Li" : "",
                               events & RUBY_EVENT_CLASS    ? "Cl" : "",
                               events & RUBY_EVENT_END      ? "En" : "",
@@ -2226,6 +2226,7 @@ rb_iseq_disasm_insn(VALUE ret, const VALUE *code, size_t pos,
                               events & RUBY_EVENT_C_RETURN ? "Cr" : "",
                               events & RUBY_EVENT_B_CALL   ? "Bc" : "",
                               events & RUBY_EVENT_B_RETURN ? "Br" : "",
+                              events & RUBY_INTERNAL_EVENT_IVAR_WRITE ? "Ivw" : "",
                               events & RUBY_INTERNAL_EVENT_IVAR_READ ? "Ivr" : "",
                               events & RUBY_EVENT_COVERAGE_LINE   ? "Cli" : "",
                               events & RUBY_EVENT_COVERAGE_BRANCH ? "Cbr" : "");

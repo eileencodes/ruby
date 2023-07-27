@@ -9637,6 +9637,7 @@ iseq_compile_each0(rb_iseq_t *iseq, LINK_ANCHOR *const ret, const NODE *const no
         if (!popped) {
             ADD_INSN(ret, node, dup);
         }
+        ADD_TRACE(ret, RUBY_INTERNAL_EVENT_IVAR_WRITE);
         ADD_INSN2(ret, node, setinstancevariable,
                   ID2SYM(node->nd_vid),
                   get_ivar_ic_value(iseq,node->nd_vid));

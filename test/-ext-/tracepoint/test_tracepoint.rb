@@ -31,10 +31,15 @@ class TestTracepointObj < Test::Unit::TestCase
   class IvarClass
     def initialize
       @a = 1
+      @b = nil
     end
 
     def read
       @a
+    end
+
+    def write
+      @b = 2
     end
   end
 
@@ -46,6 +51,16 @@ class TestTracepointObj < Test::Unit::TestCase
     }
 
     assert_equal [:@a, false, :@a, true], result
+  end
+
+  def test_tracks_ivar_writes
+    ivar_class = IvarClass.new
+    result = Bug.tracepoint_track_ivar_write_events{
+      ivar_class.write
+      ivar_class.write
+    }
+
+    assert_equal [:@b, false, :@b, true], result
   end
 
   def test_tracks_objspace_count
