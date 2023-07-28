@@ -6504,9 +6504,8 @@ vm_trace(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp)
                 shape_id_t cached_shape;
                 attr_index_t index;
 
-                // FIXME: huge hack
-                ID id = (ID)(*(pc + 1));
-                IVC ic = (IVC)(*(pc + 2));
+                ID id = (ID)GET_OPERAND(1);
+                IVC ic = (IVC)GET_OPERAND(2);
 
                 vm_ic_atomic_shape_and_index(ic, &cached_shape, &index);
 
@@ -6523,9 +6522,8 @@ vm_trace(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp)
                 shape_id_t cached_shape;
                 attr_index_t index;
 
-                // FIXME: huge hack
-                ID id = (ID)(*(pc + 1));
-                IVC ic = (IVC)(*(pc + 2));
+                ID id = (ID)GET_OPERAND(1);
+                IVC ic = (IVC)GET_OPERAND(2);
 
                 vm_ic_atomic_shape_and_index(ic, &cached_shape, &index);
 
