@@ -2873,6 +2873,39 @@ rb_obj_embedded_size(uint32_t numiv)
     return offsetof(struct RObject, as.ary) + (sizeof(VALUE) * numiv);
 }
 
+static enum rb_id_table_iterator_result
+method_entry_i(ID key, VALUE value, void *data)
+{
+    const rb_method_entry_t *me = (const rb_method_entry_t *)value;
+    int type = me->def->type;
+
+    if (type == VM_METHOD_TYPE_IVAR || type == VM_METHOD_TYPE_ATTRSET) {
+        ID mid = me->def->body.attr.id;
+        VALUE instance = (VALUE) data;
+        rb_ivar_set(instance, mid, Qnil);
+    }
+
+    return ID_TABLE_CONTINUE;
+}
+
+static void
+add_instance_method_list(VALUE mod, VALUE instance)
+{
+    struct rb_id_table *m_tbl = RCLASS_M_TBL(mod);
+    if (!m_tbl) return;
+    rb_id_table_foreach(m_tbl, method_entry_i, (void *) instance);
+}
+
+static void
+initialize_default_ivs(VALUE klass, VALUE instance) {
+    VALUE super = RCLASS_SUPER(klass);
+    if (super) {
+        initialize_default_ivs(super, instance);
+    }
+
+    add_instance_method_list(klass, instance);
+}
+
 static VALUE
 rb_class_instance_allocate_internal(VALUE klass, VALUE flags, bool wb_protected)
 {
@@ -2894,6 +2927,8 @@ rb_class_instance_allocate_internal(VALUE klass, VALUE flags, bool wb_protected)
     // Set the shape to the specific T_OBJECT shape which is always
     // SIZE_POOL_COUNT away from the root shape.
     ROBJECT_SET_SHAPE_ID(obj, ROBJECT_SHAPE_ID(obj) + SIZE_POOL_COUNT);
+
+    initialize_default_ivs(klass, obj);
 
 #if RUBY_DEBUG
     RUBY_ASSERT(!rb_shape_obj_too_complex(obj));
