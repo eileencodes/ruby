@@ -1409,6 +1409,22 @@ pm_compile_node(rb_iseq_t *iseq, const pm_node_t *node, LINK_ANCHOR *const ret, 
           }
           return;
       }
+      case PM_INTERPOLATED_MATCH_LAST_LINE_NODE: {
+          pm_interpolated_match_last_line_node_t *interp_regular_expression_node= (pm_interpolated_match_last_line_node_t *) node;
+          pm_interpolated_node_compile(interp_regular_expression_node->parts, iseq, dummy_line_node, ret, src, popped, compile_context);
+          if (interp_regular_expression_node->parts.size > 1) {
+              ADD_INSN2(ret, &dummy_line_node, toregexp, INT2FIX(0), INT2FIX((int)(interp_regular_expression_node->parts.size)));
+          }
+
+          VALUE global_variable_name = rb_id2sym(idLASTLINE);
+
+          ADD_INSN1(ret, &dummy_line_node, getglobal, global_variable_name);
+
+	  ADD_SEND(ret, &dummy_line_node, idEqTilde, INT2NUM(1));
+
+          PM_POP_IF_POPPED;
+          return;
+      }
       case PM_INTERPOLATED_REGULAR_EXPRESSION_NODE: {
           pm_interpolated_regular_expression_node_t *interp_regular_expression_node= (pm_interpolated_regular_expression_node_t *) node;
           pm_interpolated_node_compile(interp_regular_expression_node->parts, iseq, dummy_line_node, ret, src, popped, compile_context);
