@@ -3484,17 +3484,24 @@ AC_ARG_WITH(soname,
 	    AS_CASE(["$target_os"],
 	    [darwin*], [
 	        RUBY_SO_NAME='$(RUBY_BASE_NAME).$(RUBY_API_VERSION)'
+                RUBYGC_SO_NAME='$(RUBY_BASE_NAME)gc.$(RUBY_API_VERSION)'
 	    ],
 	    [cygwin*], [
 	        RUBY_SO_NAME='$(RUBY_BASE_NAME)$(MAJOR)$(MINOR)0'
+	        RUBYGC_SO_NAME='$(RUBY_BASE_NAME)gc$(MAJOR)$(MINOR)0'
 	    ],
 	    [mingw*], [
 		RUBY_SO_NAME="${rb_cv_msvcrt}"'-$(RUBY_BASE_NAME)$(MAJOR)$(MINOR)0'
+		RUBYGC_SO_NAME="${rb_cv_msvcrt}"'-$(RUBY_BASE_NAME)gc$(MAJOR)$(MINOR)0'
 		AS_IF([test x"${target_cpu}" != xi386], [
 		    RUBY_SO_NAME="${target_cpu}-${RUBY_SO_NAME}"
+		    RUBYGC_SO_NAME="${target_cpu}-${RUBY_SO_NAME}gc"
 		])
 	    ],
-	    [RUBY_SO_NAME='$(RUBY_BASE_NAME)'])
+	    [
+                RUBY_SO_NAME='$(RUBY_BASE_NAME)'
+                RUBYGC_SO_NAME='$(RUBY_BASE_NAME)gc'
+            ])
 	])
 
 LIBRUBY_LDSHARED=${DLDSHARED=${LDSHARED}}
@@ -3511,7 +3518,7 @@ libprefix=${multiarch+'$(archlibdir)'}${multiarch-'$(libdir)'}
 LIBRUBY_RELATIVE=${load_relative-no}
 AS_CASE("$enable_shared", [yes], [
   LIBRUBY='$(LIBRUBY_SO)'
-  LIBRUBYARG_SHARED='-l$(RUBY_SO_NAME)'
+  LIBRUBYARG_SHARED='-l$(RUBY_SO_NAME) -l$(RUBYGC_SO_NAME)'
   LIBRUBYARG='$(LIBRUBYARG_SHARED)'
   LIBRUBY_RELATIVE=no
   test -z "$CCDLFLAGS" || CFLAGS="$CFLAGS $CCDLFLAGS"
@@ -4217,6 +4224,7 @@ AC_SUBST(RUBY_INSTALL_NAME)
 AC_SUBST(rubyw_install_name)
 AC_SUBST(RUBYW_INSTALL_NAME)
 AC_SUBST(RUBY_SO_NAME)
+AC_SUBST(RUBYGC_SO_NAME)
 AC_SUBST(LIBRUBY_A)
 AC_SUBST(LIBRUBY_SO)
 AC_SUBST(LIBRUBY_SONAME)
