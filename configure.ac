@@ -3509,16 +3509,89 @@ LIBRUBY_DLDFLAGS=$DLDFLAGS
 LIBRUBY_SO='lib$(RUBY_SO_NAME).$(SOEXT).$(RUBY_PROGRAM_VERSION)'
 LIBRUBY_SONAME='lib$(RUBY_SO_NAME).$(SOEXT).$(RUBY_API_VERSION)'
 LIBRUBY_ALIASES='lib$(RUBY_SO_NAME).$(SOEXT)'
+
+LIBRUBYGC_SO='lib$(RUBYGC_SO_NAME).$(SOEXT).$(RUBY_PROGRAM_VERSION)'
+LIBRUBYGC_SONAME='lib$(RUBYGC_SO_NAME).$(SOEXT).$(RUBY_API_VERSION)'
+LIBRUBYGC_ALIASES='lib$(RUBYGC_SO_NAME).$(SOEXT)'
+
 ENABLE_SHARED=no
+
+libprefix=${multiarch+'$(archlibdir)'}${multiarch-'$(libdir)'}
+LIBRUBY_RELATIVE=${load_relative-no}
+
+AC_ARG_ENABLE(shared_gc,
+       AS_HELP_STRING([--enable-shared-gc], [build a shared GC library for Ruby]),
+       [enable_shared_gc=$enableval])
+
+AS_CASE("$enable_shared_gc", [yes], [
+  LIBRUBYGC='$(LIBRUBYGC_SO)'
+  LIBRUBYGCARG_SHARED='-l$(RUBYGC_SO_NAME)'
+  LIBRUBYGCARG='$(LIBRUBYGCARG_SHARED)'
+  LIBRUBYGC_RELATIVE=no
+  test -z "$CCDLFLAGS" || CFLAGS="$CFLAGS $CCDLFLAGS"
+  ENABLE_SHARED=yes
+
+  # libdir can be overridden in config.site file (on OpenSUSE at least).
+  libdir_basename=lib
+  AS_IF([test "$bindir" = '${exec_prefix}/bin'], [
+    AS_CASE(["$libdir"], ['${exec_prefix}/'*], [libdir_basename=`basename "$libdir"`])
+  ])
+  AC_DEFINE_UNQUOTED(LIBDIR_BASENAME, ["${libdir_basename}"])
+  libdir_basename="${libdir_basename}"${multiarch+'/${arch}'}
+
+  # Debian bullseye reportedly has its ld(1) patched, which breaks
+  # --enable-shared --with-jemalloc combination.  We might have to deal with
+  # the ld(1) change sooner or later, but in the meantime let us force it
+  # the old way.
+  #
+  # See https://github.com/ruby/ruby/pull/4627
+  RUBY_TRY_LDFLAGS([${linker_flag}--no-as-needed], [no_as_needed=yes], [no_as_needed=no])
+  AS_IF([test "$no_as_needed" = yes], [
+      RUBY_APPEND_OPTIONS(LDFLAGS, [${linker_flag}--no-as-needed])
+  ])
+
+  #AS_CASE(["$target_os"],
+  #  [linux* | gnu* | k*bsd*-gnu | atheos* | kopensolaris*-gnu | haiku*], [
+  #      RUBY_APPEND_OPTIONS(LIBRUBY_DLDFLAGS, ['-Wl,-soname,$(LIBRUBY_SONAME)' "$LDFLAGS_OPTDIR"])
+  #      LIBRUBY_ALIASES='$(LIBRUBY_SONAME) lib$(RUBY_SO_NAME).$(SOEXT)'
+  #      AS_IF([test "$load_relative" = yes], [
+  #          libprefix="'\$\${ORIGIN}/../${libdir_basename}'"
+  #          LIBRUBY_RPATHFLAGS="-Wl,-rpath,${libprefix}"
+  #          LIBRUBY_RELATIVE=yes
+  #      ])
+  #      ],
+  #  [darwin*], [
+  #      LIBRUBY_SO='lib$(RUBY_SO_NAME).$(SOEXT)'
+  #      LIBRUBY_SONAME='$(LIBRUBY_SO)'
+  #      LIBRUBY_ALIASES='lib$(RUBY_INSTALL_NAME).$(SOEXT)'
+  #      AS_IF([test "$load_relative" = yes], [
+  #          libprefix="@executable_path/../${libdir_basename}"
+  #          LIBRUBY_RELATIVE=yes
+  #      ])
+
+  #      LIBRUBY_DLDFLAGS="$LIBRUBY_DLDFLAGS -install_name ${libprefix}"'/$(LIBRUBY_SONAME)'
+  #      LIBRUBY_DLDFLAGS="$LIBRUBY_DLDFLAGS "'-compatibility_version $(RUBY_API_VERSION)'
+  #      LIBRUBY_DLDFLAGS="$LIBRUBY_DLDFLAGS "'-current_version $(RUBY_PROGRAM_VERSION)'
+
+  #      AS_IF([test "$visibility_option" = ld], [
+  #          LIBRUBY_DLDFLAGS="$LIBRUBY_DLDFLAGS "'-Wl,-unexported_symbol,_Init_*'
+  #          LIBRUBY_DLDFLAGS="$LIBRUBY_DLDFLAGS "'-Wl,-unexported_symbol,_ruby_static_id_*'
+  #          LIBRUBY_DLDFLAGS="$LIBRUBY_DLDFLAGS "'-Wl,-unexported_symbol,*_threadptr_*'
+  #      ])
+  #      LIBRUBY_DLDFLAGS="$LIBRUBY_DLDFLAGS "' $(XLDFLAGS)'
+  #      ],
+  #    )
+], [
+    AC_MSG_NOTICE([======== shared gc is not enabled ============])
+                               ])
 
 AC_ARG_ENABLE(shared,
        AS_HELP_STRING([--enable-shared], [build a shared library for Ruby]),
        [enable_shared=$enableval])
-libprefix=${multiarch+'$(archlibdir)'}${multiarch-'$(libdir)'}
-LIBRUBY_RELATIVE=${load_relative-no}
+
 AS_CASE("$enable_shared", [yes], [
   LIBRUBY='$(LIBRUBY_SO)'
-  LIBRUBYARG_SHARED='-l$(RUBY_SO_NAME) -l$(RUBYGC_SO_NAME)'
+  LIBRUBYARG_SHARED='-l$(RUBY_SO_NAME)'
   LIBRUBYARG='$(LIBRUBYARG_SHARED)'
   LIBRUBY_RELATIVE=no
   test -z "$CCDLFLAGS" || CFLAGS="$CFLAGS $CCDLFLAGS"
@@ -4233,6 +4306,7 @@ AC_SUBST(LIBRUBY)
 AC_SUBST(LIBRUBYARG)
 AC_SUBST(LIBRUBYARG_STATIC)
 AC_SUBST(LIBRUBYARG_SHARED)
+AC_SUBST(LIBRUBYGC_SO)
 AC_SUBST(SOLIBS)
 AC_SUBST(DLDLIBS)
 AC_SUBST(DLDSHARED)
