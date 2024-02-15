@@ -1,3 +1,7 @@
+#include <stdio.h>
+#include <stdlib.h>
+
 void
-init(void) {
+GC_Init(void) {
+    fprintf(stderr, "hi mom\n");
 }

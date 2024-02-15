@@ -32,10 +32,13 @@
 # undef RUBY_DEBUG_ENV
 #endif
 
+void GC_Init(void);
+
 static int
 rb_main(int argc, char **argv)
 {
     RUBY_INIT_STACK;
+    GC_Init();
     ruby_init();
     return ruby_run_node(ruby_options(argc, argv));
 }

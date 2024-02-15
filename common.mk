@@ -445,7 +445,7 @@ program: $(SHOWFLAGS) $(DOT_WAIT) $(PROGRAM)
 wprogram: $(SHOWFLAGS) $(DOT_WAIT) $(WPROGRAM)
 mini: PHONY miniruby$(EXEEXT)
 
-$(PROGRAM) $(WPROGRAM): $(LIBRUBY) $(MAINOBJ) $(OBJS) $(EXTOBJS) $(SETUP) $(PREP)
+$(PROGRAM) $(WPROGRAM): $(LIBRUBY) $(LIBRUBYGC) $(MAINOBJ) $(OBJS) $(EXTOBJS) $(SETUP) $(PREP)
 
 $(LIBRUBY_A):	$(LIBRUBY_A_OBJS) $(MAINOBJ) $(INITOBJS) $(ARCHFILE)
 
@@ -711,7 +711,7 @@ clear-installed-list: PHONY
 
 clean: clean-ext clean-enc clean-golf clean-docs clean-extout clean-local clean-platform clean-spec
 clean-local:: clean-runnable
-	$(Q)$(RM) $(OBJS) $(MINIOBJS) $(INITOBJS) $(MAINOBJ) $(LIBRUBY_A) $(LIBRUBY_SO) $(LIBRUBY) $(LIBRUBY_ALIASES)
+	$(Q)$(RM) $(OBJS) $(MINIOBJS) $(INITOBJS) $(MAINOBJ) $(LIBRUBY_A) $(LIBRUBY_SO) $(LIBRUBYGC_SO) $(LIBRUBY) $(LIBRUBY_ALIASES)
 	$(Q)$(RM) $(PROGRAM) $(WPROGRAM) miniruby$(EXEEXT) dmyext.$(OBJEXT) dmyenc.$(OBJEXT) $(ARCHFILE) .*.time
 	$(Q)$(RM) y.tab.c y.output encdb.h transdb.h config.log rbconfig.rb $(ruby_pc) $(COROUTINE_H:/Context.h=/.time)
 	$(Q)$(RM) probes.h probes.$(OBJEXT) probes.stamp ruby-glommed.$(OBJEXT) ruby.imp ChangeLog $(STATIC_RUBY)$(EXEEXT)
