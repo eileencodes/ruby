@@ -3577,9 +3577,7 @@ AS_CASE("$enable_shared_gc", [yes], [
           LIBRUBY_RELATIVE=yes
       ])
 
-        LIBRUBY_DLDFLAGS="$LIBRUBY_DLDFLAGS -install_name ${libprefix}"'/$(LIBRUBYGC_SONAME)'
-        LIBRUBY_DLDFLAGS="$LIBRUBY_DLDFLAGS "'-compatibility_version $(RUBY_API_VERSION)'
-        LIBRUBY_DLDFLAGS="$LIBRUBY_DLDFLAGS "'-current_version $(RUBY_PROGRAM_VERSION)'
+        LIBRUBYGC_DLDFLAGS="-install_name ${libprefix}"'/$(LIBRUBYGC_SONAME)'
 
         #AS_IF([test "$visibility_option" = ld], [
         #    LIBRUBY_DLDFLAGS="$LIBRUBY_DLDFLAGS "'-Wl,-unexported_symbol,_Init_*'
@@ -4324,6 +4322,7 @@ AC_SUBST(LIBRUBYGCARG)
 AC_SUBST(LIBRUBYGCARG_STATIC)
 AC_SUBST(LIBRUBYGCARG_SHARED)
 AC_SUBST(LIBRUBYGC_A_OBJS)
+AC_SUBST(LIBRUBYGC_DLDFLAGS)
 
 AC_SUBST(SOLIBS)
 AC_SUBST(DLDLIBS)
