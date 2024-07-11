@@ -373,9 +373,7 @@ void rb_vm_update_references(void *ptr);
 #define RMOVED(obj) ((struct RMoved *)(obj))
 
 #define TYPED_UPDATE_IF_MOVED(_objspace, _type, _thing) do { \
-    if (rb_gc_impl_object_moved_p((_objspace), (VALUE)(_thing))) {    \
-        *(_type *)&(_thing) = (_type)rb_gc_impl_location(_objspace, (VALUE)_thing); \
-    } \
+    *(_type *)&(_thing) = (_type)rb_gc_impl_moved_object_location(_objspace, (VALUE)_thing); \
 } while (0)
 
 #define UPDATE_IF_MOVED(_objspace, _thing) TYPED_UPDATE_IF_MOVED(_objspace, VALUE, _thing)
@@ -3018,13 +3016,8 @@ hash_replace_ref(st_data_t *key, st_data_t *value, st_data_t argp, int existing)
 {
     void *objspace = (void *)argp;
 
-    if (rb_gc_impl_object_moved_p(objspace, (VALUE)*key)) {
-        *key = rb_gc_impl_location(objspace, (VALUE)*key);
-    }
-
-    if (rb_gc_impl_object_moved_p(objspace, (VALUE)*value)) {
-        *value = rb_gc_impl_location(objspace, (VALUE)*value);
-    }
+    *key = rb_gc_impl_moved_object_location(objspace, (VALUE)*key);
+    *value = rb_gc_impl_moved_object_location(objspace, (VALUE)*value);
 
     return ST_CONTINUE;
 }
@@ -3051,9 +3044,7 @@ hash_replace_ref_value(st_data_t *key, st_data_t *value, st_data_t argp, int exi
 {
     void *objspace = (void *)argp;
 
-    if (rb_gc_impl_object_moved_p(objspace, (VALUE)*value)) {
-        *value = rb_gc_impl_location(objspace, (VALUE)*value);
-    }
+    *value = rb_gc_impl_moved_object_location(objspace, (VALUE)*value);
 
     return ST_CONTINUE;
 }
@@ -3165,9 +3156,7 @@ update_id_table(VALUE *value, void *data, int existing)
 {
     void *objspace = (void *)data;
 
-    if (rb_gc_impl_object_moved_p(objspace, (VALUE)*value)) {
-        *value = rb_gc_impl_location(objspace, (VALUE)*value);
-    }
+    *value = rb_gc_impl_moved_object_location(objspace, (VALUE)*value);
 
     return ID_TABLE_CONTINUE;
 }
@@ -3186,9 +3175,7 @@ update_cc_tbl_i(VALUE ccs_ptr, void *objspace)
     struct rb_class_cc_entries *ccs = (struct rb_class_cc_entries *)ccs_ptr;
     VM_ASSERT(vm_ccs_p(ccs));
 
-    if (rb_gc_impl_object_moved_p(objspace, (VALUE)ccs->cme)) {
-        ccs->cme = (const rb_callable_method_entry_t *)rb_gc_impl_location(objspace, (VALUE)ccs->cme);
-    }
+    ccs->cme = (const rb_callable_method_entry_t *)rb_gc_impl_moved_object_location(objspace, (VALUE)ccs->cme);
 
     for (int i=0; i<ccs->len; i++) {
         if (rb_gc_impl_object_moved_p(objspace, (VALUE)ccs->entries[i].cc)) {
@@ -3239,13 +3226,8 @@ update_const_table(VALUE value, void *objspace)
 {
     rb_const_entry_t *ce = (rb_const_entry_t *)value;
 
-    if (rb_gc_impl_object_moved_p(objspace, ce->value)) {
-        ce->value = rb_gc_impl_location(objspace, ce->value);
-    }
-
-    if (rb_gc_impl_object_moved_p(objspace, ce->file)) {
-        ce->file = rb_gc_impl_location(objspace, ce->file);
-    }
+    ce->value = rb_gc_impl_moved_object_location(objspace, ce->value);
+    ce->file = rb_gc_impl_moved_object_location(objspace, ce->file);
 
     return ID_TABLE_CONTINUE;
 }

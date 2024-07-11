@@ -4232,6 +4232,12 @@ gc_sweep_continue(rb_objspace_t *objspace, rb_size_pool_t *sweep_size_pool, rb_h
     gc_sweeping_exit(objspace);
 }
 
+bool
+rb_gc_impl_object_moved_p(void *objspace_ptr, VALUE obj)
+{
+    return gc_object_moved_p(objspace_ptr, obj);
+}
+
 VALUE
 rb_gc_impl_location(void *objspace_ptr, VALUE value)
 {
@@ -4259,6 +4265,17 @@ rb_gc_impl_location(void *objspace_ptr, VALUE value)
     }
 
     return destination;
+}
+
+VALUE
+rb_gc_impl_moved_object_location(void *objspace_ptr, VALUE value)
+{
+    if (rb_gc_impl_object_moved_p(objspace_ptr, value)) {
+        return rb_gc_impl_location(objspace_ptr, value);
+    }
+    else {
+        return value;
+    }
 }
 
 #if GC_CAN_COMPILE_COMPACTION
@@ -7343,12 +7360,6 @@ gc_sort_heap_by_compare_func(rb_objspace_t *objspace, gc_compact_compare_func co
 }
 #endif
 
-bool
-rb_gc_impl_object_moved_p(void *objspace_ptr, VALUE obj)
-{
-    return gc_object_moved_p(objspace_ptr, obj);
-}
-
 static int
 gc_ref_update(void *vstart, void *vend, size_t stride, rb_objspace_t *objspace, struct heap_page *page)
 {
@@ -7397,9 +7408,7 @@ hash_replace_ref_value(st_data_t *key, st_data_t *value, st_data_t argp, int exi
 {
     void *objspace = (void *)argp;
 
-    if (rb_gc_impl_object_moved_p(objspace, (VALUE)*value)) {
-        *value = rb_gc_impl_location(objspace, (VALUE)*value);
-    }
+    *value = rb_gc_impl_moved_object_location(objspace, (VALUE)*value);
 
     return ST_CONTINUE;
 }
@@ -7449,13 +7458,8 @@ hash_replace_ref(st_data_t *key, st_data_t *value, st_data_t argp, int existing)
 {
     void *objspace = (void *)argp;
 
-    if (rb_gc_impl_object_moved_p(objspace, (VALUE)*key)) {
-        *key = rb_gc_impl_location(objspace, (VALUE)*key);
-    }
-
-    if (rb_gc_impl_object_moved_p(objspace, (VALUE)*value)) {
-        *value = rb_gc_impl_location(objspace, (VALUE)*value);
-    }
+    *key = rb_gc_impl_moved_object_location(objspace, (VALUE)*key);
+    *value = rb_gc_impl_moved_object_location(objspace, (VALUE)*value);
 
     return ST_CONTINUE;
 }
@@ -7510,8 +7514,10 @@ root_obj_check_moved_i(const char *category, VALUE obj, void *data)
 {
     rb_objspace_t *objspace = data;
 
-    if (gc_object_moved_p(objspace, obj)) {
-        rb_bug("ROOT %s points to MOVED: %p -> %s", category, (void *)obj, rb_obj_info(rb_gc_impl_location(objspace, obj)));
+    VALUE location = rb_gc_impl_moved_object_location(objspace, obj);
+
+    if (location != obj) {
+        rb_bug("ROOT %s points to MOVED: %p -> %s", category, (void *)obj, rb_obj_info(location));
     }
 }
 
@@ -7519,8 +7525,10 @@ static void
 reachable_object_check_moved_i(VALUE ref, void *data)
 {
     VALUE parent = (VALUE)data;
-    if (gc_object_moved_p(rb_gc_get_objspace(), ref)) {
-        rb_bug("Object %s points to MOVED: %p -> %s", rb_obj_info(parent), (void *)ref, rb_obj_info(rb_gc_impl_location(rb_gc_get_objspace(), ref)));
+    VALUE location = rb_gc_impl_moved_object_location(rb_gc_get_objspace(), ref);
+
+    if (location != ref) {
+        rb_bug("Object %s points to MOVED: %p -> %s", rb_obj_info(parent), (void *)ref, rb_obj_info(location));
     }
 }
 

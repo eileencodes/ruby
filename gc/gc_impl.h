@@ -48,6 +48,7 @@ void rb_gc_impl_objspace_mark(void *objspace_ptr);
 // Compaction
 bool rb_gc_impl_object_moved_p(void *objspace_ptr, VALUE obj);
 VALUE rb_gc_impl_location(void *objspace_ptr, VALUE value);
+VALUE rb_gc_impl_moved_object_location(void *objspace_ptr, VALUE value);
 // Write barriers
 void rb_gc_impl_writebarrier(void *objspace_ptr, VALUE a, VALUE b);
 void rb_gc_impl_writebarrier_unprotect(void *objspace_ptr, VALUE obj);
