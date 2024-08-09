@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require_relative "helper"
 require "webrick"
+require "net/http"
 
-class TestGemRemoteFetcher < Gem::TestCase
+class TestGemRemoteFetcher < Test::Unit::TestCase
   SERVER_DATA = <<-EOY
 --- !ruby/object:Object
 gems:
@@ -47,12 +47,6 @@ gems:
 
   PROXY_DATA = SERVER_DATA.gsub(/0.4.11/, "0.4.2")
 
-  def test_download_same_file
-    start_servers
-  ensure
-    stop_servers
-  end
-
   def test_implicit_upper_case_proxy
     start_servers
     uri = URI("http://localhost:#{proxy_server_port}/yaml")
@@ -76,20 +70,14 @@ gems:
 
   private
 
-  attr_reader :normal_server, :proxy_server
-
   def start_servers
     @normal_server = start_server(SERVER_DATA)
     @proxy_server  = start_server(PROXY_DATA)
   end
 
   def stop_servers
-    if @normal_server
-      @normal_server.kill.join
-    end
-    if @proxy_server
-      @proxy_server.kill.join
-    end
+    @normal_server.kill.join
+    @proxy_server.kill.join
     WEBrick::Utils::TimeoutHandler.terminate
   end
 

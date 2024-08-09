@@ -10423,7 +10423,7 @@ gc_sort_heap_by_compare_func(rb_objspace_t *objspace, gc_compact_compare_func co
 static void
 rb_mmtk_gc_ref_update_string(rb_objspace_t * objspace, VALUE str)
 {
-     if (STR_EMBED_P(str)) {
+    if (STR_EMBED_P(str)) {
         // Embedded strings don't point into any buffer.
         return;
     }
@@ -10433,6 +10433,14 @@ rb_mmtk_gc_ref_update_string(rb_objspace_t * objspace, VALUE str)
         // Skip it.
         return;
     }
+
+    // Is this a legit assertion?
+    // If a string is not embedded, it _must_ point at a strbuf object.
+    if (!RSTRING_EXT(str)->strbuf && STR_SHARED_P(str)) {
+        //fprintf(stderr, "string %s shared: %d\n", RSTRING_PTR(str), STR_SHARED_P(str));
+        //GC_ASSERT(RSTRING_EXT(str)->strbuf);
+    }
+
 
     if (STR_SHARED_P(str)) {
         VALUE old_root = RSTRING(str)->as.heap.aux.shared;
@@ -10455,12 +10463,18 @@ rb_mmtk_gc_ref_update_string(rb_objspace_t * objspace, VALUE str)
         // Just fall through and adjust `ptr` according to `RSTRING_EXT(str)->strbuf`.
     }
 
+    if (RSTRING_LEN(str) == 941) {
+        fprintf(stderr, "marking %p\n", RSTRING(str)->as.heap.ptr);
+    }
     // Otherwise the RSTRING_EXT(obj)->strbuf field always points to the underlying imemo:mmtk_strbuf.
     VALUE old_strbuf = RSTRING_EXT(str)->strbuf;
     UPDATE_IF_MOVED(objspace, RSTRING_EXT(str)->strbuf);
     VALUE new_strbuf = RSTRING_EXT(str)->strbuf;
     size_t offset = (size_t)RSTRING(str)->as.heap.ptr - (size_t)old_strbuf;
     RSTRING(str)->as.heap.ptr = (char*)(new_strbuf + offset);
+    if (RSTRING_LEN(str) == 941) {
+        fprintf(stderr, "done %p old_strbuf: %p new_strbuf: %p\n", RSTRING(str)->as.heap.ptr, old_strbuf, new_strbuf);
+    }
 
     // Currently the size of the string cannot change during GC.
 }

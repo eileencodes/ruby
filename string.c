@@ -1587,6 +1587,7 @@ str_replace_shared_without_enc(VALUE str2, VALUE str)
             }
         }
 #endif
+        //fprintf(stderr, "line: %d str2 %p, root %p\n", __LINE__, (void *)str2, (void *)root);
         STR_SET_SHARED(str2, root);
     }
 
@@ -1663,6 +1664,8 @@ rb_str_tmp_frozen_no_embed_acquire(VALUE orig)
         RSTRING(str)->as.heap.ptr = RSTRING(orig)->as.heap.ptr;
         RBASIC(str)->flags |= RBASIC(orig)->flags & STR_NOFREE;
         RBASIC(orig)->flags &= ~STR_NOFREE;
+        //fprintf(stderr, "line: %d orig %p, str %p\n", __LINE__, (void *)orig, (void *)str);
+        //fprintf(stderr, "underlying buffer: %s\n", RSTRING_PTR(orig));
         STR_SET_SHARED(orig, str);
     }
 
@@ -1776,6 +1779,19 @@ str_new_frozen_buffer(VALUE klass, VALUE orig, int copy_encoding)
     else {
         if (FL_TEST_RAW(orig, STR_SHARED)) {
             VALUE shared = RSTRING(orig)->as.heap.aux.shared;
+            // orig gets moved but shared does not
+            if (RSTRING_LEN(orig) == 941) {
+                void * strbuf_ptr = (void *)rb_mmtk_strbuf_to_chars((rb_mmtk_strbuf_t *)RSTRING_EXT(orig)->strbuf);
+                void * orig_ptr = (void *)RSTRING(orig)->as.heap.ptr;
+                void * shared_ptr = (void *)RSTRING_PTR(shared);
+                fprintf(stderr, "strbuf_ptr %p, orig_ptr %p, shared_ptr %p\n", strbuf_ptr, orig_ptr, shared_ptr);
+
+                fprintf(stderr, "str addr orig: %p shared: %p orig_strbuf %p shared_strbuf %p\n",
+                        RSTRING(orig)->as.heap.ptr,
+                        RSTRING_PTR(shared),
+                        RSTRING_EXT(orig)->strbuf,
+                        RSTRING_EXT(shared)->strbuf);
+            }
             long ofs = RSTRING(orig)->as.heap.ptr - RSTRING_PTR(shared);
             long rest = RSTRING_LEN(shared) - ofs - RSTRING_LEN(orig);
             RUBY_ASSERT(ofs >= 0);
