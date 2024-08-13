@@ -1786,11 +1786,13 @@ str_new_frozen_buffer(VALUE klass, VALUE orig, int copy_encoding)
                 void * shared_ptr = (void *)RSTRING_PTR(shared);
                 fprintf(stderr, "strbuf_ptr %p, orig_ptr %p, shared_ptr %p\n", strbuf_ptr, orig_ptr, shared_ptr);
 
-                fprintf(stderr, "str addr orig: %p shared: %p orig_strbuf %p shared_strbuf %p\n",
+                fprintf(stderr, "str addr orig: %p shared: %p orig_strbuf %p shared_strbuf %p, orig len: %d, shared len: %d\n",
                         RSTRING(orig)->as.heap.ptr,
                         RSTRING_PTR(shared),
                         RSTRING_EXT(orig)->strbuf,
-                        RSTRING_EXT(shared)->strbuf);
+                        RSTRING_EXT(shared)->strbuf,
+                        RSTRING_LEN(orig),
+                        RSTRING_LEN(shared));
             }
             long ofs = RSTRING(orig)->as.heap.ptr - RSTRING_PTR(shared);
             long rest = RSTRING_LEN(shared) - ofs - RSTRING_LEN(orig);
@@ -2006,6 +2008,7 @@ str_shared_replace(VALUE str, VALUE str2)
             STR_SET_NOEMBED(str2);
         }
 
+        // not here
         STR_SET_NOEMBED(str);
         FL_UNSET(str, STR_SHARED);
         RSTRING(str)->as.heap.ptr = RSTRING_PTR(str2);
