@@ -10466,6 +10466,7 @@ rb_mmtk_gc_ref_update_string(rb_objspace_t * objspace, VALUE str)
     if (RSTRING_LEN(str) == 941) {
         fprintf(stderr, "marking %p\n", RSTRING(str)->as.heap.ptr);
     }
+    GC_ASSERT(RSTRING_EXT(str)->strbuf);
     // Otherwise the RSTRING_EXT(obj)->strbuf field always points to the underlying imemo:mmtk_strbuf.
     VALUE old_strbuf = RSTRING_EXT(str)->strbuf;
     UPDATE_IF_MOVED(objspace, RSTRING_EXT(str)->strbuf);
