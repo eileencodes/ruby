@@ -1663,6 +1663,11 @@ rb_str_tmp_frozen_no_embed_acquire(VALUE orig)
         RSTRING(str)->as.heap.ptr = RSTRING(orig)->as.heap.ptr;
         RBASIC(str)->flags |= RBASIC(orig)->flags & STR_NOFREE;
         RBASIC(orig)->flags &= ~STR_NOFREE;
+#if USE_MMTK
+        if (rb_mmtk_enabled_p()) {
+            rb_mmtk_str_set_strbuf(str, RSTRING_EXT(orig)->strbuf);
+        }
+#endif
         STR_SET_SHARED(orig, str);
     }
 

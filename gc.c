@@ -10438,6 +10438,9 @@ rb_mmtk_gc_ref_update_string(rb_objspace_t * objspace, VALUE str)
         VALUE old_root = RSTRING(str)->as.heap.aux.shared;
         UPDATE_IF_MOVED(objspace, RSTRING(str)->as.heap.aux.shared);
         VALUE new_root = RSTRING(str)->as.heap.aux.shared;
+        if (rb_mmtk_str_no_free(new_root)) {
+            return;
+        }
 
         // Note: For evacuating collectors such as Immix, `new_root` points into the to-space,
         // and the object is guaranteed to be readable.  But `old_root` may point to the from-space
@@ -10456,6 +10459,7 @@ rb_mmtk_gc_ref_update_string(rb_objspace_t * objspace, VALUE str)
     }
 
     // Otherwise the RSTRING_EXT(obj)->strbuf field always points to the underlying imemo:mmtk_strbuf.
+    GC_ASSERT(RSTRING_EXT(str)->strbuf);
     VALUE old_strbuf = RSTRING_EXT(str)->strbuf;
     UPDATE_IF_MOVED(objspace, RSTRING_EXT(str)->strbuf);
     VALUE new_strbuf = RSTRING_EXT(str)->strbuf;
