@@ -29,4 +29,6 @@ Gem::Specification.new do |spec|
   spec.bindir = "exe"
   spec.executables = ["syntax_suggest"]
   spec.require_paths = ["lib"]
+
+  spec.add_dependency "rake", "~> 12.0"
 end
